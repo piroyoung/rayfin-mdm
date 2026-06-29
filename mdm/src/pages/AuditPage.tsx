@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { listAudit } from '@/services/audit';
 import {
   AUDIT_ACTION_META,
+  humanizeToken,
+  tonedMeta,
   type AuditAction,
   type AuditDomain,
   type AuditEvent,
@@ -141,11 +143,13 @@ function AuditRow({ event }: { event: AuditEvent }) {
         {fmtDateTime(event.createdAt)}
       </td>
       <td className="px-4 py-3">
-        <Badge tone={AUDIT_ACTION_META[event.action].tone}>
-          {AUDIT_ACTION_META[event.action].label}
+        <Badge tone={tonedMeta(AUDIT_ACTION_META, event.action).tone}>
+          {tonedMeta(AUDIT_ACTION_META, event.action).label}
         </Badge>
       </td>
-      <td className="px-4 py-3 text-gray-600">{DOMAIN_LABELS[event.domain]}</td>
+      <td className="px-4 py-3 text-gray-600">
+        {DOMAIN_LABELS[event.domain] ?? humanizeToken(event.domain)}
+      </td>
       <td className="px-4 py-3 text-gray-700">{event.recordLabel ?? '—'}</td>
       <td className="px-4 py-3 text-gray-700">
         {event.summary ?? '—'}

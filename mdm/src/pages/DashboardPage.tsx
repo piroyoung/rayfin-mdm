@@ -15,6 +15,7 @@ import {
   AUDIT_ACTION_META,
   isActiveStatus,
   MASTER_DOMAIN_META,
+  tonedMeta,
   type AuditEvent,
   type ChangeRequest,
   type Customer,
@@ -203,8 +204,8 @@ export function DashboardPage() {
                   key={event.id}
                   className="flex items-center gap-3 py-2.5 text-sm"
                 >
-                  <Badge tone={AUDIT_ACTION_META[event.action].tone}>
-                    {AUDIT_ACTION_META[event.action].label}
+                  <Badge tone={tonedMeta(AUDIT_ACTION_META, event.action).tone}>
+                    {tonedMeta(AUDIT_ACTION_META, event.action).label}
                   </Badge>
                   <span className="min-w-0 flex-1 truncate text-gray-700">
                     {event.summary ?? event.recordLabel ?? '—'}

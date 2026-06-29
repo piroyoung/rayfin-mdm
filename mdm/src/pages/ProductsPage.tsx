@@ -16,6 +16,7 @@ import { scoreProduct } from '@/domain/quality';
 import {
   optionsOf,
   RECORD_STATUS_META,
+  tonedMeta,
   UOM_META,
   isActiveStatus,
   type Product,
@@ -435,8 +436,8 @@ export function ProductsPage() {
                       {fmtMoney(p.listPrice, p.currency)}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={RECORD_STATUS_META[p.status].tone}>
-                        {RECORD_STATUS_META[p.status].label}
+                      <Badge tone={tonedMeta(RECORD_STATUS_META, p.status).tone}>
+                        {tonedMeta(RECORD_STATUS_META, p.status).label}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
@@ -591,8 +592,8 @@ function DuplicateGroupCard({
               {r.name} <span className="text-xs text-gray-500">({r.sku})</span>
             </span>
             <QualityBadge score={r.qualityScore} />
-            <Badge tone={RECORD_STATUS_META[r.status].tone}>
-              {RECORD_STATUS_META[r.status].label}
+            <Badge tone={tonedMeta(RECORD_STATUS_META, r.status).tone}>
+              {tonedMeta(RECORD_STATUS_META, r.status).label}
             </Badge>
           </label>
         ))}

@@ -14,9 +14,11 @@ import { submitChangeRequest } from '@/services/stewardship';
 import { findCustomerDuplicates } from '@/domain/duplicates';
 import { scoreCustomer } from '@/domain/quality';
 import {
+  labelledMeta,
   optionsOf,
   RECORD_STATUS_META,
   SEGMENT_META,
+  tonedMeta,
   isActiveStatus,
   type Customer,
   type RecordStatus,
@@ -453,11 +455,11 @@ export function CustomersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      {SEGMENT_META[c.segment].label}
+                      {labelledMeta(SEGMENT_META, c.segment).label}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={RECORD_STATUS_META[c.status].tone}>
-                        {RECORD_STATUS_META[c.status].label}
+                      <Badge tone={tonedMeta(RECORD_STATUS_META, c.status).tone}>
+                        {tonedMeta(RECORD_STATUS_META, c.status).label}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
@@ -615,8 +617,8 @@ function DuplicateGroupCard({
               <span className="text-xs text-gray-500">({r.customerCode})</span>
             </span>
             <QualityBadge score={r.qualityScore} />
-            <Badge tone={RECORD_STATUS_META[r.status].tone}>
-              {RECORD_STATUS_META[r.status].label}
+            <Badge tone={tonedMeta(RECORD_STATUS_META, r.status).tone}>
+              {tonedMeta(RECORD_STATUS_META, r.status).label}
             </Badge>
           </label>
         ))}

@@ -9,7 +9,9 @@ import {
 import {
   CHANGE_STATUS_META,
   CHANGE_TYPE_META,
+  labelledMeta,
   MASTER_DOMAIN_META,
+  tonedMeta,
   type ChangeRequest,
   type ChangeStatus,
 } from '@/domain/types';
@@ -131,13 +133,13 @@ export function StewardshipPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone="indigo">
-                        {MASTER_DOMAIN_META[cr.domain].label}
+                        {labelledMeta(MASTER_DOMAIN_META, cr.domain).label}
                       </Badge>
                       <Badge tone="slate">
-                        {CHANGE_TYPE_META[cr.changeType].label}
+                        {labelledMeta(CHANGE_TYPE_META, cr.changeType).label}
                       </Badge>
-                      <Badge tone={CHANGE_STATUS_META[cr.status].tone}>
-                        {CHANGE_STATUS_META[cr.status].label}
+                      <Badge tone={tonedMeta(CHANGE_STATUS_META, cr.status).tone}>
+                        {tonedMeta(CHANGE_STATUS_META, cr.status).label}
                       </Badge>
                     </div>
                     <p className="mt-2 font-medium text-gray-900">

@@ -99,6 +99,33 @@ export const MASTER_DOMAIN_META: Record<MasterDomain, Labelled> = {
   product: { label: 'Product' },
 };
 
+/** Title-case an unknown enum token for a display fallback (`status_change` → `Status change`). */
+export function humanizeToken(value: string | null | undefined): string {
+  if (!value) return '—';
+  const spaced = value.replace(/[_-]+/g, ' ').trim();
+  return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : '—';
+}
+
+/**
+ * Resolve display metadata for an enum value that *might* fall outside the
+ * current union. The Fabric backend is persistent, so rows written under an
+ * earlier schema can carry values we no longer model — looking them up
+ * directly (`MAP[value].tone`) would throw during render and blank the whole
+ * app. These accessors fall back to a neutral badge instead.
+ */
+export function tonedMeta<K extends string>(map: Record<K, Toned>, key: K): Toned {
+  const hit = (map as Record<string, Toned | undefined>)[key];
+  return hit ?? { label: humanizeToken(key), tone: 'gray' };
+}
+
+export function labelledMeta<K extends string>(
+  map: Record<K, Labelled>,
+  key: K
+): Labelled {
+  const hit = (map as Record<string, Labelled | undefined>)[key];
+  return hit ?? { label: humanizeToken(key) };
+}
+
 /** Build `[value,label]` option pairs for a `<Select>` from a metadata map. */
 export function optionsOf<K extends string>(
   meta: Record<K, Labelled>
