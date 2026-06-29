@@ -1,0 +1,25 @@
+# Everyday CI: runs on pushes to main and on pull requests.
+# Validation only — it never deploys. Deploys happen in release.yml when a
+# `v*.*` tag is pushed.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mdm/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/verify.yml'
+  pull_request:
+    paths:
+      - 'mdm/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml

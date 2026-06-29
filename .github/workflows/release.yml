@@ -1,0 +1,137 @@
+# Release pipeline: deploys the MDM app to Microsoft Fabric.
+#
+# Trigger: pushing a release tag matching `v*.*` (e.g. v1.0, v1.2.3).
+# Kept separate from everyday CI (ci.yml) so ordinary pushes/PRs never deploy.
+# Manual `workflow_dispatch` is also allowed for ad-hoc / hotfix releases.
+#
+# Auth: Azure OIDC (federated credentials — no long-lived secrets stored).
+#
+# ─────────────────────────────────────────────────────────────────────────
+# One-time setup required in your tenant / repo
+# ─────────────────────────────────────────────────────────────────────────
+# 1. Create a GitHub **Environment** named `production`
+#    (Settings → Environments). Optionally add required reviewers so a
+#    release must be approved before it deploys.
+# 2. Create an Entra ID app registration (service principal) and add a
+#    **federated credential** bound to that environment:
+#      Issuer:   https://token.actions.githubusercontent.com
+#      Audience: api://AzureADTokenExchange
+#      Subject:  repo:piroyoung/rayfin-mdm:environment:production
+#    (An environment-scoped subject is stable across every tag, unlike a
+#     per-tag `ref:refs/tags/...` subject.)
+# 3. Grant the service principal **Member/Contributor** on the Fabric
+#    workspace "rayfin-smec-championship", and enable the tenant admin
+#    setting "Service principals can use Fabric APIs".
+# 4. Add these GitHub **secrets** (repo- or `production`-environment-scoped):
+#      AZURE_CLIENT_ID        – app registration (client) ID
+#      AZURE_TENANT_ID        – the tenant the service principal lives in
+#      AZURE_SUBSCRIPTION_ID  – optional (omit → allow-no-subscriptions)
+# 5. (Optional) override the deploy target with GitHub **variables**:
+#      RAYFIN_WORKSPACE_ID    – defaults to the known workspace GUID below
+#      RAYFIN_TENANT_ID       – Fabric tenant (ctid) for portal links
+#
+# Cut a release:   git tag v1.0.0 && git push origin v1.0.0
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*'
+  workflow_dispatch:
+    inputs:
+      force_schema:
+        description: 'Allow destructive data-schema changes (passes --force to rayfin up)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write # required for Azure OIDC login
+
+concurrency:
+  group: release-fabric
+  cancel-in-progress: false
+
+jobs:
+  # Re-run the full hermetic verification before shipping.
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  deploy:
+    name: rayfin up → Fabric
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: mdm
+    env:
+      RAYFIN_WORKSPACE_ID: ${{ vars.RAYFIN_WORKSPACE_ID || '54294be3-ba65-46fe-a3dd-33a916a15acc' }}
+      RAYFIN_TENANT_ID: ${{ vars.RAYFIN_TENANT_ID || 'eecca864-7a91-4b48-9327-e19aa5cc3f35' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mdm/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          allow-no-subscriptions: true
+
+      - name: Acquire Fabric token → RAYFIN_TOKEN
+        shell: bash
+        run: |
+          set -eo pipefail
+          TOKEN=$(az account get-access-token \
+            --resource https://api.fabric.microsoft.com \
+            --query accessToken -o tsv)
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Failed to acquire a Fabric access token"
+            exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          echo "RAYFIN_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Deploy with rayfin up
+        shell: bash
+        env:
+          FORCE_SCHEMA: ${{ github.event.inputs.force_schema }}
+        run: |
+          set -eo pipefail
+          EXTRA=""
+          if [ "$FORCE_SCHEMA" = "true" ]; then
+            EXTRA="--force"
+            echo "⚠️  Destructive schema changes enabled (--force)"
+          fi
+          # --yes auto-accepts reuse of the existing "mdm" app backend in the
+          # target workspace (the local .deployments.json is gitignored, so
+          # CI resolves the item by name on each run).
+          npx rayfin up \
+            --workspace-id "$RAYFIN_WORKSPACE_ID" \
+            --tenant "$RAYFIN_TENANT_ID" \
+            --yes $EXTRA 2>&1 | tee deploy.log
+
+      - name: Publish deployment summary
+        if: success()
+        shell: bash
+        run: |
+          set -eo pipefail
+          URL=$(grep -oE 'https://[a-z0-9-]+\.webapp[^ ]*' deploy.log | tail -1 || true)
+          {
+            echo "### ✅ MDM released to Fabric"
+            echo ""
+            echo "- Release: \`${GITHUB_REF_NAME}\`"
+            echo "- Workspace ID: \`$RAYFIN_WORKSPACE_ID\`"
+            if [ -n "$URL" ]; then echo "- Hosting URL: $URL"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
