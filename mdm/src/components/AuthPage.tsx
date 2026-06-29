@@ -51,9 +51,15 @@ export function AuthPage() {
         <div className="w-full max-w-sm">
           <div className="rounded-3xl border border-white/60 bg-white/80 p-8 shadow-xl backdrop-blur-sm">
             <div className="mb-8 text-center">
-              <h1 className="text-2xl font-bold text-gray-900">Blank App</h1>
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-lg font-bold text-white shadow-md shadow-blue-600/25">
+                M
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900">MDM</h1>
+              <p className="mt-1 text-sm font-medium text-gray-600">
+                Master Data Management
+              </p>
               <p className="mt-2 text-sm text-gray-500">
-                Sign in to get started.
+                Sign in to manage your golden records.
               </p>
             </div>
 
