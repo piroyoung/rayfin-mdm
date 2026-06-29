@@ -1,46 +1,43 @@
-# Deploy the MDM Rayfin app to Microsoft Fabric.
+# Release pipeline: deploys the MDM app to Microsoft Fabric.
+#
+# Trigger: pushing a release tag matching `v*.*` (e.g. v1.0, v1.2.3).
+# Kept separate from everyday CI (ci.yml) so ordinary pushes/PRs never deploy.
+# Manual `workflow_dispatch` is also allowed for ad-hoc / hotfix releases.
 #
 # Auth: Azure OIDC (federated credentials — no long-lived secrets stored).
-# The job signs in with `azure/login`, mints a Fabric access token with the
-# Azure CLI, exposes it to the Rayfin CLI via RAYFIN_TOKEN, then runs
-# `rayfin up` to deploy the data schema + static frontend.
 #
 # ─────────────────────────────────────────────────────────────────────────
 # One-time setup required in your tenant / repo
 # ─────────────────────────────────────────────────────────────────────────
-# 1. Create an Entra ID app registration (service principal).
-# 2. Add a **federated credential** to it for GitHub Actions:
+# 1. Create a GitHub **Environment** named `production`
+#    (Settings → Environments). Optionally add required reviewers so a
+#    release must be approved before it deploys.
+# 2. Create an Entra ID app registration (service principal) and add a
+#    **federated credential** bound to that environment:
 #      Issuer:   https://token.actions.githubusercontent.com
 #      Audience: api://AzureADTokenExchange
-#      Subject:  repo:piroyoung/rayfin-mdm:ref:refs/heads/main
-#    This subject matches pushes to `main` and manual runs on `main`.
-#    (If you instead pin the deploy job to a GitHub Environment via
-#     `environment: <name>`, the OIDC subject becomes
-#     `repo:piroyoung/rayfin-mdm:environment:<name>` — register that subject.)
+#      Subject:  repo:piroyoung/rayfin-mdm:environment:production
+#    (An environment-scoped subject is stable across every tag, unlike a
+#     per-tag `ref:refs/tags/...` subject.)
 # 3. Grant the service principal **Member/Contributor** on the Fabric
-#    workspace "rayfin-smec-championship", and ensure the tenant admin
-#    setting "Service principals can use Fabric APIs" is enabled.
-# 4. Add these GitHub **secrets** (Settings → Secrets and variables → Actions):
+#    workspace "rayfin-smec-championship", and enable the tenant admin
+#    setting "Service principals can use Fabric APIs".
+# 4. Add these GitHub **secrets** (repo- or `production`-environment-scoped):
 #      AZURE_CLIENT_ID        – app registration (client) ID
 #      AZURE_TENANT_ID        – the tenant the service principal lives in
-#      AZURE_SUBSCRIPTION_ID  – optional (any subscription the SP can read;
-#                               omit and the job uses allow-no-subscriptions)
+#      AZURE_SUBSCRIPTION_ID  – optional (omit → allow-no-subscriptions)
 # 5. (Optional) override the deploy target with GitHub **variables**:
 #      RAYFIN_WORKSPACE_ID    – defaults to the known workspace GUID below
 #      RAYFIN_TENANT_ID       – Fabric tenant (ctid) for portal links
+#
+# Cut a release:   git tag v1.0.0 && git push origin v1.0.0
 
-name: Deploy MDM to Fabric
+name: Release
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'mdm/**'
-      - '.github/workflows/deploy-fabric.yml'
-  pull_request:
-    paths:
-      - 'mdm/**'
-      - '.github/workflows/deploy-fabric.yml'
+    tags:
+      - 'v*.*'
   workflow_dispatch:
     inputs:
       force_schema:
@@ -53,45 +50,22 @@ permissions:
   id-token: write # required for Azure OIDC login
 
 concurrency:
-  group: deploy-fabric-${{ github.ref }}
+  group: release-fabric
   cancel-in-progress: false
 
-defaults:
-  run:
-    working-directory: mdm
-
 jobs:
-  # ── Hermetic checks: no Azure credentials needed (also runs on PRs) ──────
+  # Re-run the full hermetic verification before shipping.
   verify:
-    name: Lint, typecheck, build & test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    uses: ./.github/workflows/verify.yml
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: mdm/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Build (tsc -b && vite build)
-        run: npm run build
-
-      - name: Test
-        run: npm test
-
-  # ── Deploy to Fabric: only on push to main or manual dispatch ────────────
   deploy:
     name: rayfin up → Fabric
     needs: verify
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: mdm
     env:
       RAYFIN_WORKSPACE_ID: ${{ vars.RAYFIN_WORKSPACE_ID || '54294be3-ba65-46fe-a3dd-33a916a15acc' }}
       RAYFIN_TENANT_ID: ${{ vars.RAYFIN_TENANT_ID || 'eecca864-7a91-4b48-9327-e19aa5cc3f35' }}
@@ -155,8 +129,9 @@ jobs:
           set -eo pipefail
           URL=$(grep -oE 'https://[a-z0-9-]+\.webapp[^ ]*' deploy.log | tail -1 || true)
           {
-            echo "### ✅ MDM deployed to Fabric"
+            echo "### ✅ MDM released to Fabric"
             echo ""
+            echo "- Release: \`${GITHUB_REF_NAME}\`"
             echo "- Workspace ID: \`$RAYFIN_WORKSPACE_ID\`"
             if [ -n "$URL" ]; then echo "- Hosting URL: $URL"; fi
           } >> "$GITHUB_STEP_SUMMARY"
