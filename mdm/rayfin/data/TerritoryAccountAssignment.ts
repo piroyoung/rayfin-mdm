@@ -17,7 +17,7 @@ import {
  */
 @entity()
 @authenticated('*')
-export class AccountTerritoryAssignment {
+export class TerritoryAccountAssignment {
   @uuid() id!: string;
 
   /** Account.id (the master account record). */

@@ -69,7 +69,7 @@ export function IngestPage() {
       setSummary(result);
       setPreview(null);
       toast(
-        `Ingested ${result.assignmentsCreated} assignment(s), ${result.accountsCreated} new account(s).`,
+        `Ingested ${result.assignmentsCreated} role seat(s), ${result.placementsCreated} territory placement(s), ${result.accountsCreated} new account(s).`,
         'success'
       );
     } catch (err) {
@@ -146,10 +146,11 @@ export function IngestPage() {
       {summary && (
         <Card className="p-4">
           <p className="text-sm font-medium text-gray-700">Ingest complete</p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <StatCard label="Accounts created" value={summary.accountsCreated} tone="blue" />
-            <StatCard label="Assignments created" value={summary.assignmentsCreated} tone="green" />
-            <StatCard label="Assignments skipped" value={summary.assignmentsSkipped} tone="slate" />
+            <StatCard label="Placements created" value={summary.placementsCreated} tone="purple" />
+            <StatCard label="Role seats created" value={summary.assignmentsCreated} tone="green" />
+            <StatCard label="Role seats skipped" value={summary.assignmentsSkipped} tone="slate" />
             <StatCard label="Issues raised" value={summary.issuesRaised} tone="amber" />
             <StatCard
               label="Fiscal year"
@@ -157,7 +158,9 @@ export function IngestPage() {
               tone="indigo"
             />
           </div>
-          {summary.assignmentsCreated === 0 && summary.accountsCreated === 0 && (
+          {summary.assignmentsCreated === 0 &&
+            summary.placementsCreated === 0 &&
+            summary.accountsCreated === 0 && (
             <p className="mt-3 text-xs text-gray-500">
               Nothing new was written — this sheet was already ingested (the
               importer is idempotent).

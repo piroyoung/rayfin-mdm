@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { listFiscalYears } from '@/services/fiscalYears';
-import { listAccountAssignableRoles } from '@/services/roleTypes';
+import { listAccountAssignableRoles } from '@/services/roles';
 import { listEmployees } from '@/services/employees';
 import { listTerritories } from '@/services/territories';
 import {
@@ -26,7 +26,7 @@ import {
   type AssignmentStatus,
   type Employee,
   type FiscalYear,
-  type RoleType,
+  type Role,
   type Territory,
   type TerritoryRoleAssignment,
 } from '@/domain/types';
@@ -45,7 +45,7 @@ import {
 interface RefData {
   territories: Territory[];
   fiscalYears: FiscalYear[];
-  roles: RoleType[];
+  roles: Role[];
   employees: Employee[];
 }
 

@@ -1,6 +1,6 @@
 /**
  * Employee master service: CRUD plus identity-conflict detection (alias / UPN /
- * email must be unique among active employees) and manager-cycle awareness.
+ * email must be unique among active employees).
  */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
@@ -15,10 +15,7 @@ export interface EmployeeInput {
   displayName: string;
   localName?: string;
   jobTitle?: string;
-  roleFamily?: string;
   roleTypeCode?: string;
-  organizationUnitId?: string;
-  managerEmployeeId?: string;
   countryCode?: string;
   officeLocation?: string;
   employmentStatus?: string;
@@ -39,10 +36,7 @@ const EMPLOYEE_FIELDS = [
   'displayName',
   'localName',
   'jobTitle',
-  'roleFamily',
   'roleTypeCode',
-  'organizationUnitId',
-  'managerEmployeeId',
   'countryCode',
   'officeLocation',
   'employmentStatus',

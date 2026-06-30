@@ -1,34 +1,27 @@
 /**
- * Assignments: pick an account + fiscal year, then manage its role coverage
- * (account ↔ employee) and territory placement (account ↔ territory). This is
- * the row-normalised replacement for the wide Excel role columns.
+ * Assignments: pick an account + fiscal year, then view its territory placement
+ * and the role coverage *derived* from that territory's roster, side by side
+ * with the previous fiscal year so reassignments are obvious.
+ *
+ * Coverage is never stored per account: people are decided on the Territory
+ * Roster, and accounts inherit the roster of the territory they sit in.
  */
 import { useEffect, useMemo, useState } from 'react';
 
 import { listAccounts, accountName } from '@/services/accounts';
 import { listFiscalYears } from '@/services/fiscalYears';
-import { listAccountAssignableRoles } from '@/services/roleTypes';
+import { listAccountAssignableRoles } from '@/services/roles';
 import { listEmployees } from '@/services/employees';
 import { listTerritories } from '@/services/territories';
 import { listTerritoryRoleAssignmentsForTerritory } from '@/services/territoryRoleAssignments';
 import {
-  createEmployeeAssignment,
   createTerritoryAssignment,
-  deleteEmployeeAssignment,
-  listEmployeeAssignmentsForAccount,
   listTerritoryAssignmentsForAccount,
-  reassignEmployeeAssignment,
-  setEmployeeAssignmentStatus,
-  setPrimaryEmployeeAssignment,
   setTerritoryAssignmentStatus,
 } from '@/services/assignments';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/hooks/useToast';
-import {
-  canTransition,
-  workflowActions,
-} from '@/domain/assignmentWorkflow';
-import { fyAssignmentChanges } from '@/domain/assignmentViews';
+import { canTransition } from '@/domain/assignmentWorkflow';
 import {
   currentTerritoryIdsForAccount,
   deriveAccountTeam,
@@ -37,13 +30,12 @@ import {
 import {
   ASSIGNMENT_STATUS_META,
   tonedMeta,
-  type AccountEmployeeAssignment,
-  type AccountTerritoryAssignment,
+  type TerritoryAccountAssignment,
   type TerritoryRoleAssignment,
   type Account,
   type Employee,
   type FiscalYear,
-  type RoleType,
+  type Role,
   type Territory,
 } from '@/domain/types';
 import {
@@ -52,17 +44,15 @@ import {
   Card,
   EmptyState,
   Field,
-  Modal,
   PageHeader,
   Select,
   Spinner,
-  Tooltip,
 } from '@/components/ui';
 
 interface RefData {
   accounts: Account[];
   fiscalYears: FiscalYear[];
-  roles: RoleType[];
+  roles: Role[];
   employees: Employee[];
   territories: Territory[];
 }
@@ -80,127 +70,22 @@ const loadRefs = async (): Promise<RefData> => {
 };
 
 interface AccountAssignments {
-  employee: AccountEmployeeAssignment[];
-  territory: AccountTerritoryAssignment[];
-  /** Roster seats of the territories this account currently sits in. */
+  /** Territory placements for the selected fiscal year. */
+  territory: TerritoryAccountAssignment[];
+  /** All placements across fiscal years (used to derive teams per FY). */
+  allTerritory: TerritoryAccountAssignment[];
+  /** Roster seats of the selected-FY territories this account sits in. */
   territoryRoles: TerritoryRoleAssignment[];
-  /** All fiscal years for this account, used to derive FY-over-FY changes. */
-  allEmployee: AccountEmployeeAssignment[];
+  /** Roster seats of the previous-FY territories, for FY comparison. */
+  prevTerritoryRoles: TerritoryRoleAssignment[];
 }
 
 const EMPTY_ASSIGNMENTS: AccountAssignments = {
-  employee: [],
   territory: [],
+  allTerritory: [],
   territoryRoles: [],
-  allEmployee: [],
+  prevTerritoryRoles: [],
 };
-
-function AddAssignmentForm({
-  roles,
-  employees,
-  territories,
-  saving,
-  onCancel,
-  onSubmit,
-}: {
-  roles: RoleType[];
-  employees: Employee[];
-  territories: Territory[];
-  saving: boolean;
-  onCancel: () => void;
-  onSubmit: (input: {
-    employeeId: string;
-    roleTypeCode: string;
-    territoryId?: string;
-    isPrimary: boolean;
-  }) => void;
-}) {
-  const [employeeId, setEmployeeId] = useState('');
-  const [roleTypeCode, setRoleTypeCode] = useState(roles[0]?.code ?? '');
-  const [territoryId, setTerritoryId] = useState('');
-  const [isPrimary, setIsPrimary] = useState(false);
-  const valid = employeeId !== '' && roleTypeCode !== '';
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (valid)
-          onSubmit({
-            employeeId,
-            roleTypeCode,
-            territoryId: territoryId || undefined,
-            isPrimary,
-          });
-      }}
-    >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Employee" required>
-          <Select
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-            required
-          >
-            <option value="">— select —</option>
-            {employees
-              .filter((emp) => emp.isActive)
-              .map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.displayName}
-                  {emp.alias ? ` (${emp.alias})` : ''}
-                </option>
-              ))}
-          </Select>
-        </Field>
-        <Field label="Role" required>
-          <Select
-            value={roleTypeCode}
-            onChange={(e) => setRoleTypeCode(e.target.value)}
-            required
-          >
-            {roles.map((r) => (
-              <option key={r.id} value={r.code}>
-                {r.name} ({r.code})
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Territory (optional)">
-          <Select
-            value={territoryId}
-            onChange={(e) => setTerritoryId(e.target.value)}
-          >
-            <option value="">— none —</option>
-            {territories.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.territoryCode}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Primary owner">
-          <label className="flex h-9 items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={isPrimary}
-              onChange={(e) => setIsPrimary(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            Mark as the primary (lead) for this role
-          </label>
-        </Field>
-      </div>
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" type="submit" loading={saving} disabled={!valid}>
-          Add assignment
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 export function AssignmentsPage() {
   const toast = useToast();
@@ -214,12 +99,7 @@ export function AssignmentsPage() {
 
   const [accountId, setAccountId] = useState('');
   const [fyId, setFyId] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [reassignTarget, setReassignTarget] =
-    useState<AccountEmployeeAssignment | null>(null);
-  const [reassignTo, setReassignTo] = useState('');
 
   // Default the fiscal year to the current one once refs load.
   useEffect(() => {
@@ -228,36 +108,52 @@ export function AssignmentsPage() {
     setFyId(current.id);
   }, [fiscalYears, fyId]);
 
+  // Previous fiscal year (immediately before the selected one in sort order).
+  const prevFiscalYear = useMemo(() => {
+    const idx = fiscalYears.findIndex((fy) => fy.id === fyId);
+    return idx > 0 ? fiscalYears[idx - 1] : undefined;
+  }, [fiscalYears, fyId]);
+
   const {
     data: assignmentData,
     loading: assignmentsLoading,
     reload,
   } = useAsyncData<AccountAssignments>(async () => {
     if (!accountId) return EMPTY_ASSIGNMENTS;
-    const [employee, territory, allEmployee] = await Promise.all([
-      listEmployeeAssignmentsForAccount(accountId, fyId || undefined),
-      listTerritoryAssignmentsForAccount(accountId),
-      listEmployeeAssignmentsForAccount(accountId),
-    ]);
+    const allTerritory = await listTerritoryAssignmentsForAccount(accountId);
     const fyTerritory = fyId
-      ? territory.filter((t) => t.fiscalYearId === fyId)
-      : territory;
-    // Roster seats of the territories this account currently sits in.
-    const territoryIds = fyId
-      ? currentTerritoryIdsForAccount(accountId, fyId, territory)
-      : [];
-    const rosterLists = await Promise.all(
-      territoryIds.map((tid) =>
-        listTerritoryRoleAssignmentsForTerritory(tid, fyId || undefined)
-      )
-    );
-    return {
-      employee,
-      territory: fyTerritory,
-      territoryRoles: rosterLists.flat(),
-      allEmployee,
+      ? allTerritory.filter((t) => t.fiscalYearId === fyId)
+      : allTerritory;
+
+    const loadRoster = async (
+      someFyId?: string
+    ): Promise<TerritoryRoleAssignment[]> => {
+      if (!someFyId) return [];
+      const ids = currentTerritoryIdsForAccount(
+        accountId,
+        someFyId,
+        allTerritory
+      );
+      const lists = await Promise.all(
+        ids.map((tid) =>
+          listTerritoryRoleAssignmentsForTerritory(tid, someFyId)
+        )
+      );
+      return lists.flat();
     };
-  }, [accountId, fyId]);
+
+    const [territoryRoles, prevTerritoryRoles] = await Promise.all([
+      loadRoster(fyId || undefined),
+      loadRoster(prevFiscalYear?.id),
+    ]);
+
+    return {
+      territory: fyTerritory,
+      allTerritory,
+      territoryRoles,
+      prevTerritoryRoles,
+    };
+  }, [accountId, fyId, prevFiscalYear?.id]);
 
   const assignments = assignmentData ?? EMPTY_ASSIGNMENTS;
 
@@ -278,45 +174,46 @@ export function AssignmentsPage() {
     return (id?: string) => (id ? (map.get(id) ?? '—') : '—');
   }, [territories]);
 
-  // Group employee assignments by role for the matrix view.
-  const byRole = useMemo(() => {
-    const groups = new Map<string, AccountEmployeeAssignment[]>();
-    for (const a of assignments.employee) {
-      const arr = groups.get(a.roleTypeCode) ?? [];
-      arr.push(a);
-      groups.set(a.roleTypeCode, arr);
-    }
-    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [assignments.employee]);
-
-  // Derived account team: who covers each role, from the territory roster with
-  // per-account overrides winning. This is the canonical "who covers this
-  // account" view under the territory-first model.
+  // Derived account team for the selected FY, read from its territory roster.
   const derivedTeam = useMemo<DerivedAccountRole[]>(() => {
     if (!accountId || !fyId) return [];
     return deriveAccountTeam({
       accountId,
       fiscalYearId: fyId,
-      territoryAssignments: assignments.territory,
+      territoryAssignments: assignments.allTerritory,
       territoryRoleAssignments: assignments.territoryRoles,
-      employeeAssignments: assignments.employee,
     });
   }, [accountId, fyId, assignments]);
 
-  // Previous fiscal year (immediately before the selected one in sort order).
-  const prevFiscalYear = useMemo(() => {
-    const idx = fiscalYears.findIndex((fy) => fy.id === fyId);
-    return idx > 0 ? fiscalYears[idx - 1] : undefined;
-  }, [fiscalYears, fyId]);
+  // Derived team for the previous FY, for the side-by-side comparison.
+  const prevTeam = useMemo<DerivedAccountRole[]>(() => {
+    if (!accountId || !prevFiscalYear) return [];
+    return deriveAccountTeam({
+      accountId,
+      fiscalYearId: prevFiscalYear.id,
+      territoryAssignments: assignments.allTerritory,
+      territoryRoleAssignments: assignments.prevTerritoryRoles,
+    });
+  }, [accountId, prevFiscalYear, assignments]);
 
-  // Derived FY-over-FY owner changes (published primary owner per role).
-  const fyChanges = useMemo(() => {
-    if (!prevFiscalYear || !fyId) return [];
-    const all = assignments.allEmployee;
-    const prev = all.filter((r) => r.fiscalYearId === prevFiscalYear.id);
-    const cur = all.filter((r) => r.fiscalYearId === fyId);
-    return fyAssignmentChanges(prev, cur).filter((c) => c.changed);
-  }, [assignments.allEmployee, prevFiscalYear, fyId]);
+  // Merge current + previous coverage by role for the comparison table.
+  const comparison = useMemo(() => {
+    const cur = new Map(derivedTeam.map((r) => [r.roleTypeCode, r.employeeId]));
+    const prev = new Map(prevTeam.map((r) => [r.roleTypeCode, r.employeeId]));
+    const codes = [...new Set([...cur.keys(), ...prev.keys()])].sort((a, b) =>
+      a.localeCompare(b)
+    );
+    return codes.map((code) => {
+      const current = cur.get(code);
+      const previous = prev.get(code);
+      return {
+        roleTypeCode: code,
+        currentEmployeeId: current,
+        previousEmployeeId: previous,
+        changed: (current ?? '') !== (previous ?? ''),
+      };
+    });
+  }, [derivedTeam, prevTeam]);
 
   async function runAction(
     id: string,
@@ -335,62 +232,13 @@ export function AssignmentsPage() {
     }
   }
 
-  async function handleAdd(input: {
-    employeeId: string;
-    roleTypeCode: string;
-    territoryId?: string;
-    isPrimary: boolean;
-  }) {
-    setSaving(true);
-    try {
-      await createEmployeeAssignment({
-        accountId,
-        fiscalYearId: fyId,
-        ...input,
-      });
-      // Enforce single-primary if the new row claims primary.
-      if (input.isPrimary) {
-        const rows = await listEmployeeAssignmentsForAccount(accountId, fyId);
-        const justAdded = rows.find(
-          (r) =>
-            r.employeeId === input.employeeId &&
-            r.roleTypeCode === input.roleTypeCode &&
-            r.isPrimary
-        );
-        if (justAdded)
-          await setPrimaryEmployeeAssignment(rows, justAdded.id);
-      }
-      toast('Assignment added.', 'success');
-      setAdding(false);
-      reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Add failed.', 'error');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const selectedAccount = accounts.find((c) => c.id === accountId);
   const territoryPlacement = assignments.territory.find((t) => t.currentFlag);
-
-  async function handleReassign() {
-    if (!reassignTarget || !reassignTo) return;
-    const target = reassignTarget;
-    const newEmployeeId = reassignTo;
-    setReassignTarget(null);
-    setReassignTo('');
-    await runAction(
-      target.id,
-      () => reassignEmployeeAssignment(target, newEmployeeId),
-      'Owner reassigned — history preserved.'
-    );
-  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Assignments"
-        subtitle="Account coverage by role and fiscal year. Most roles are inherited from the account's territory roster; the rows below are per-account overrides."
+        subtitle="Account coverage by role and fiscal year, derived from the territory roster. Compare this year's team with last year's."
       />
 
       <Card className="p-4">
@@ -429,7 +277,7 @@ export function AssignmentsPage() {
       ) : !accountId ? (
         <EmptyState
           title="Select an account"
-          description="Choose an account and fiscal year to view and edit its coverage."
+          description="Choose an account and fiscal year to view its coverage."
         />
       ) : (
         <>
@@ -468,6 +316,7 @@ export function AssignmentsPage() {
               <div className="min-w-48 flex-1">
                 <Select
                   value=""
+                  disabled={!fyId}
                   onChange={(e) => {
                     const territoryId = e.target.value;
                     if (!territoryId) return;
@@ -485,7 +334,9 @@ export function AssignmentsPage() {
                   }}
                 >
                   <option value="">
-                    {territoryPlacement ? 'Move to territory…' : 'Place in territory…'}
+                    {territoryPlacement
+                      ? 'Move to territory…'
+                      : 'Place in territory…'}
                   </option>
                   {territories.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -495,7 +346,10 @@ export function AssignmentsPage() {
                 </Select>
               </div>
               {territoryPlacement &&
-                canTransition(territoryPlacement.assignmentStatus, 'retired') && (
+                canTransition(
+                  territoryPlacement.assignmentStatus,
+                  'retired'
+                ) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -518,15 +372,16 @@ export function AssignmentsPage() {
             </div>
           </Card>
 
-          {/* Derived team (from territory roster + overrides) */}
+          {/* Derived team (from territory roster) */}
           <Card>
             <div className="border-b border-gray-100 p-4">
               <p className="text-sm font-medium text-gray-700">
                 Team — derived from territory roster
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                Who covers this account per role. Roles come from the roster of
-                the account's territory; a per-account override takes precedence.
+                Who covers this account per role, read from the roster of the
+                account&apos;s territory. Staff seats on the Territory Roster
+                page.
               </p>
             </div>
             {assignmentsLoading ? (
@@ -536,7 +391,7 @@ export function AssignmentsPage() {
             ) : derivedTeam.length === 0 ? (
               <EmptyState
                 title="No derived coverage"
-                description="Place this account in a territory and staff that territory's roster, or add a per-account override below."
+                description="Place this account in a territory and staff that territory's roster to see coverage here."
               />
             ) : (
               <div className="overflow-x-auto">
@@ -545,7 +400,7 @@ export function AssignmentsPage() {
                     <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
                       <th className="px-4 py-3">Role</th>
                       <th className="px-4 py-3">Member</th>
-                      <th className="px-4 py-3">Source</th>
+                      <th className="px-4 py-3">Territory</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -563,16 +418,7 @@ export function AssignmentsPage() {
                           {empName(row.employeeId)}
                         </td>
                         <td className="px-4 py-3">
-                          {row.source === 'override' ? (
-                            <Badge tone="amber">Override</Badge>
-                          ) : (
-                            <Badge tone="blue">
-                              Territory{' '}
-                              {row.territoryId
-                                ? `· ${terrCode(row.territoryId)}`
-                                : ''}
-                            </Badge>
-                          )}
+                          <Badge tone="blue">{terrCode(row.territoryId)}</Badge>
                         </td>
                       </tr>
                     ))}
@@ -582,278 +428,77 @@ export function AssignmentsPage() {
             )}
           </Card>
 
-          {/* Role coverage matrix */}
-          <Card>
-            <div className="flex items-center justify-between border-b border-gray-100 p-4">
-              <p className="text-sm font-medium text-gray-700">
-                Role coverage overrides
-                {selectedAccount ? ` — ${accountName(selectedAccount)}` : ''}
-              </p>
-              <Tooltip label="この口座に担当者を割り当てます" side="bottom">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={roles.length === 0}
-                  onClick={() => setAdding(true)}
-                >
-                  + Add assignment
-                </Button>
-              </Tooltip>
-            </div>
-
-            {assignmentsLoading ? (
-              <div className="flex justify-center py-12">
-                <Spinner label="Loading coverage…" />
+          {/* FY-over-FY comparison — last year's owner next to this year's. */}
+          {prevFiscalYear && (
+            <Card>
+              <div className="border-b border-gray-100 p-4">
+                <p className="text-sm font-medium text-gray-700">
+                  Coverage vs {prevFiscalYear.code}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  This year&apos;s member next to last year&apos;s, per role —
+                  the workbook&apos;s <code>*_Change</code> columns.
+                </p>
               </div>
-            ) : byRole.length === 0 ? (
-              <EmptyState
-                title="No overrides"
-                description="This account inherits its team from its territory roster. Add an override only to deviate for a specific role."
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
-                      <th className="px-4 py-3">Role</th>
-                      <th className="px-4 py-3">Employee</th>
-                      <th className="px-4 py-3">Territory</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {byRole.map(([code, rows]) =>
-                      rows.map((a, idx) => (
-                        <tr key={a.id} className="hover:bg-gray-50/60">
-                          <td className="px-4 py-3 text-gray-600">
-                            {idx === 0 ? (
-                              <span className="font-medium text-gray-900">
-                                {roleName(code)}
-                              </span>
-                            ) : (
-                              <span className="text-gray-300">↳</span>
+              {assignmentsLoading ? (
+                <div className="flex justify-center py-12">
+                  <Spinner label="Comparing…" />
+                </div>
+              ) : comparison.length === 0 ? (
+                <EmptyState
+                  title="Nothing to compare"
+                  description="No roster coverage in either fiscal year for this account."
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
+                        <th className="px-4 py-3">Role</th>
+                        <th className="px-4 py-3">{prevFiscalYear.code}</th>
+                        <th className="px-4 py-3">This year</th>
+                        <th className="px-4 py-3" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {comparison.map((row) => (
+                        <tr
+                          key={row.roleTypeCode}
+                          className="hover:bg-gray-50/60"
+                        >
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-gray-900">
+                              {roleName(row.roleTypeCode)}
+                            </span>
+                            <span className="ml-1 text-xs text-gray-400">
+                              {row.roleTypeCode}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500">
+                            {row.previousEmployeeId
+                              ? empName(row.previousEmployeeId)
+                              : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-900">
+                            {row.currentEmployeeId
+                              ? empName(row.currentEmployeeId)
+                              : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {row.changed && (
+                              <Badge tone="amber">Changed</Badge>
                             )}
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              {a.isPrimary && (
-                                <span title="Primary owner" className="text-amber-500">
-                                  ★
-                                </span>
-                              )}
-                              <span className="text-gray-900">
-                                {empName(a.employeeId)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">
-                            {terrCode(a.territoryId)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge
-                              tone={
-                                tonedMeta(
-                                  ASSIGNMENT_STATUS_META,
-                                  a.assignmentStatus
-                                ).tone
-                              }
-                            >
-                              {
-                                tonedMeta(
-                                  ASSIGNMENT_STATUS_META,
-                                  a.assignmentStatus
-                                ).label
-                              }
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              {!a.isPrimary && (
-                                <Tooltip label="この担当者を主担当にします">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    loading={busyId === a.id}
-                                    onClick={() =>
-                                      runAction(
-                                        a.id,
-                                        () =>
-                                          setPrimaryEmployeeAssignment(
-                                            assignments.employee,
-                                            a.id
-                                          ),
-                                        'Primary owner updated.'
-                                      )
-                                    }
-                                  >
-                                    Set primary
-                                  </Button>
-                                </Tooltip>
-                              )}
-                              {workflowActions(a.assignmentStatus).map(
-                                (act) => (
-                                  <Button
-                                    key={act.to}
-                                    size="sm"
-                                    variant={act.variant}
-                                    loading={busyId === a.id}
-                                    onClick={() =>
-                                      runAction(
-                                        a.id,
-                                        () =>
-                                          setEmployeeAssignmentStatus(
-                                            a,
-                                            act.to
-                                          ),
-                                        `Assignment → ${act.to}.`
-                                      )
-                                    }
-                                  >
-                                    {act.label}
-                                  </Button>
-                                )
-                              )}
-                              {a.currentFlag &&
-                                a.assignmentStatus !== 'retired' && (
-                                  <Tooltip label="担当者を差し替えます（履歴は保持）">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      loading={busyId === a.id}
-                                      onClick={() => {
-                                        setReassignTo('');
-                                        setReassignTarget(a);
-                                      }}
-                                    >
-                                      Reassign
-                                    </Button>
-                                  </Tooltip>
-                                )}
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-red-600 hover:bg-red-50"
-                                loading={busyId === a.id}
-                                onClick={() =>
-                                  runAction(
-                                    a.id,
-                                    () => deleteEmployeeAssignment(a),
-                                    'Assignment removed.'
-                                  )
-                                }
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-
-          {/* FY-over-FY owner changes (derived, not stored) */}
-          {prevFiscalYear && fyChanges.length > 0 && (
-            <Card className="p-4">
-              <p className="text-sm font-medium text-gray-700">
-                Owner changes vs {prevFiscalYear.code}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-500">
-                Derived from the published primary owner of each role — the
-                workbook&apos;s <code>AE_Change</code> equivalent.
-              </p>
-              <ul className="mt-3 divide-y divide-gray-50">
-                {fyChanges.map((c) => (
-                  <li
-                    key={`${c.accountId}|${c.roleTypeCode}`}
-                    className="flex items-center gap-3 py-2 text-sm"
-                  >
-                    <span className="w-28 shrink-0 font-medium text-gray-900">
-                      {roleName(c.roleTypeCode)}
-                    </span>
-                    <span className="text-gray-500">
-                      {c.previousEmployeeId
-                        ? empName(c.previousEmployeeId)
-                        : '—'}
-                    </span>
-                    <span className="text-gray-400">→</span>
-                    <span className="text-gray-900">
-                      {c.currentEmployeeId ? empName(c.currentEmployeeId) : '—'}
-                    </span>
-                    <Badge tone="amber" className="ml-auto">
-                      Changed
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </Card>
           )}
         </>
       )}
-
-      <Modal
-        open={adding}
-        onClose={() => setAdding(false)}
-        title="Add assignment"
-        size="lg"
-      >
-        <AddAssignmentForm
-          roles={roles}
-          employees={employees}
-          territories={territories}
-          saving={saving}
-          onCancel={() => setAdding(false)}
-          onSubmit={handleAdd}
-        />
-      </Modal>
-
-      <Modal
-        open={reassignTarget !== null}
-        onClose={() => setReassignTarget(null)}
-        title="Reassign owner"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setReassignTarget(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              disabled={!reassignTo || reassignTo === reassignTarget?.employeeId}
-              loading={busyId === reassignTarget?.id}
-              onClick={handleReassign}
-            >
-              Reassign
-            </Button>
-          </>
-        }
-      >
-        <p className="mb-3 text-sm text-gray-600">
-          The current owner row is end-dated and a fresh draft row is opened for
-          the new owner. History is preserved.
-        </p>
-        <Field label="New owner">
-          <Select
-            value={reassignTo}
-            onChange={(e) => setReassignTo(e.target.value)}
-          >
-            <option value="">Select an employee…</option>
-            {employees
-              .filter((e) => e.id !== reassignTarget?.employeeId)
-              .map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.alias ? `${e.displayName} (${e.alias})` : e.displayName}
-                </option>
-              ))}
-          </Select>
-        </Field>
-      </Modal>
     </div>
   );
 }

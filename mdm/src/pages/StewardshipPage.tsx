@@ -7,19 +7,19 @@ import {
   rejectChangeRequest,
 } from '@/services/stewardship';
 import {
-  listEmployeeAssignments,
-  setEmployeeAssignmentStatus,
-} from '@/services/assignments';
-import { listAccounts, accountName } from '@/services/accounts';
+  listTerritoryRoleAssignments,
+  setTerritoryRoleStatus,
+} from '@/services/territoryRoleAssignments';
+import { listTerritories } from '@/services/territories';
 import { listEmployees } from '@/services/employees';
-import { listRoleTypes } from '@/services/roleTypes';
+import { listRoles } from '@/services/roles';
 import {
   CHANGE_STATUS_META,
   CHANGE_TYPE_META,
   labelledMeta,
   MASTER_DOMAIN_META,
   tonedMeta,
-  type AccountEmployeeAssignment,
+  type TerritoryRoleAssignment,
   type ChangeRequest,
   type ChangeStatus,
 } from '@/domain/types';
@@ -50,32 +50,37 @@ function prettyPayload(payload?: string): string | null {
 }
 
 interface ApprovalRefs {
-  submitted: AccountEmployeeAssignment[];
-  accountName: (id: string) => string;
+  submitted: TerritoryRoleAssignment[];
+  territoryName: (id: string) => string;
   employeeName: (id: string) => string;
   roleName: (code: string) => string;
 }
 
 /**
- * Assignment-approval queue. Surfaces SUBMITTED employee assignments awaiting a
+ * Seat-approval queue. Surfaces SUBMITTED territory-role seats awaiting a
  * steward decision and drives the same state machine used on the Assignments
  * page (submitted → approved, or sent back to draft).
  */
 function AssignmentApprovals() {
   const toast = useToast();
   const { data, loading, reload } = useAsyncData<ApprovalRefs>(async () => {
-    const [assignments, accountList, employees, roles] = await Promise.all([
-      listEmployeeAssignments(),
-      listAccounts(),
+    const [seats, territoryList, employees, roles] = await Promise.all([
+      listTerritoryRoleAssignments(),
+      listTerritories(),
       listEmployees(),
-      listRoleTypes(),
+      listRoles(),
     ]);
-    const accounts = new Map(accountList.map((c) => [c.id, accountName(c)]));
+    const territories = new Map(
+      territoryList.map((t) => [
+        t.id,
+        `${t.territoryName} (${t.territoryCode})`,
+      ])
+    );
     const emps = new Map(employees.map((e) => [e.id, e]));
     const roleMap = new Map(roles.map((r) => [r.code, r.name]));
     return {
-      submitted: assignments.filter((a) => a.assignmentStatus === 'submitted'),
-      accountName: (id) => accounts.get(id) ?? id,
+      submitted: seats.filter((a) => a.assignmentStatus === 'submitted'),
+      territoryName: (id) => territories.get(id) ?? id,
       employeeName: (id) => {
         const e = emps.get(id);
         if (!e) return id;
@@ -88,13 +93,13 @@ function AssignmentApprovals() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function decide(
-    record: AccountEmployeeAssignment,
+    record: TerritoryRoleAssignment,
     to: 'approved' | 'draft',
     ok: string
   ) {
     setBusyId(record.id);
     try {
-      await setEmployeeAssignmentStatus(record, to);
+      await setTerritoryRoleStatus(record, to);
       toast(ok, 'success');
       reload();
     } catch (err) {
@@ -110,7 +115,7 @@ function AssignmentApprovals() {
     <Card className="p-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-gray-700">
-          Assignment approvals
+          Seat approvals
         </p>
         <Badge tone="amber">{data.submitted.length} submitted</Badge>
       </div>
@@ -121,18 +126,17 @@ function AssignmentApprovals() {
             className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm"
           >
             <span className="font-medium text-gray-900">
-              {data.accountName(a.accountId)}
+              {data.territoryName(a.territoryId)}
             </span>
             <Badge tone="blue">{data.roleName(a.roleTypeCode)}</Badge>
             <span className="text-gray-600">{data.employeeName(a.employeeId)}</span>
-            {a.isPrimary && <span className="text-amber-500" title="Primary">★</span>}
             <div className="ml-auto flex items-center gap-1">
               <Button
                 size="sm"
                 variant="primary"
                 loading={busyId === a.id}
                 onClick={() =>
-                  decide(a, 'approved', 'Assignment approved.')
+                  decide(a, 'approved', 'Seat approved.')
                 }
               >
                 Approve

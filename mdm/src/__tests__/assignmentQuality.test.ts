@@ -11,8 +11,7 @@ import {
   type QualitySnapshot,
 } from '@/domain/assignmentQuality';
 import type {
-  AccountEmployeeAssignment,
-  AccountTerritoryAssignment,
+  TerritoryAccountAssignment,
   Account,
   DataQualityIssue,
   Employee,
@@ -62,26 +61,9 @@ const territory = (over: Partial<Territory> & { id: string }): Territory =>
     ...over,
   }) as Territory;
 
-const empAssign = (
-  over: Partial<AccountEmployeeAssignment> & { id: string }
-): AccountEmployeeAssignment =>
-  ({
-    accountId: 'A1',
-    employeeId: 'E1',
-    fiscalYearId: 'FY26',
-    roleTypeCode: 'AE',
-    isPrimary: true,
-    assignmentStatus: 'active',
-    startDate: NOW,
-    currentFlag: true,
-    createdAt: NOW,
-    updatedAt: NOW,
-    ...over,
-  }) as AccountEmployeeAssignment;
-
 const terrAssign = (
-  over: Partial<AccountTerritoryAssignment> & { id: string }
-): AccountTerritoryAssignment =>
+  over: Partial<TerritoryAccountAssignment> & { id: string }
+): TerritoryAccountAssignment =>
   ({
     accountId: 'A1',
     territoryId: 'T1',
@@ -92,7 +74,7 @@ const terrAssign = (
     createdAt: NOW,
     updatedAt: NOW,
     ...over,
-  }) as AccountTerritoryAssignment;
+  }) as TerritoryAccountAssignment;
 
 const traSeat = (
   over: Partial<TerritoryRoleAssignment> & { id: string }
@@ -114,7 +96,6 @@ const empty: QualitySnapshot = {
   accounts: [],
   employees: [],
   territories: [],
-  employeeAssignments: [],
   territoryAssignments: [],
   territoryRoleAssignments: [],
 };
@@ -151,81 +132,6 @@ describe('evaluateAssignmentQuality — account rules', () => {
     const dups = findings.filter((f) => f.issueType === 'DUPLICATE_ACCOUNT');
     expect(dups.map((f) => f.entityId).sort()).toEqual(['A1', 'A2']);
     expect(dups.every((f) => f.severity === 'high')).toBe(true);
-  });
-});
-
-describe('evaluateAssignmentQuality — employee-assignment rules', () => {
-  it('flags assignments to unknown and inactive employees', () => {
-    const findings = evaluateAssignmentQuality({
-      ...empty,
-      accounts: [account({ id: 'A1' })],
-      employees: [employee({ id: 'E-inactive', isActive: false })],
-      employeeAssignments: [
-        empAssign({ id: 'X1', employeeId: 'E-missing' }),
-        empAssign({ id: 'X2', employeeId: 'E-inactive', isPrimary: false }),
-      ],
-    });
-    expect(typesOf(findings)).toContain('UNKNOWN_EMPLOYEE');
-    expect(typesOf(findings)).toContain('INACTIVE_EMPLOYEE_ASSIGNED');
-  });
-
-  it('ignores non-current assignment rows', () => {
-    const findings = evaluateAssignmentQuality({
-      ...empty,
-      accounts: [account({ id: 'A1' })],
-      employeeAssignments: [
-        empAssign({ id: 'X1', employeeId: 'E-missing', currentFlag: false }),
-      ],
-    });
-    expect(findings).toEqual([]);
-  });
-
-  it('flags an assignment pointing at a non-existent territory', () => {
-    const findings = evaluateAssignmentQuality({
-      ...empty,
-      accounts: [account({ id: 'A1' })],
-      employees: [employee({ id: 'E1' })],
-      employeeAssignments: [empAssign({ id: 'X1', territoryId: 'T-gone' })],
-    });
-    expect(typesOf(findings)).toContain('INVALID_TERRITORY');
-  });
-});
-
-describe('evaluateAssignmentQuality — primary-owner rules', () => {
-  it('flags MULTIPLE_PRIMARY_OWNER when a scope has two primaries', () => {
-    const findings = evaluateAssignmentQuality({
-      ...empty,
-      accounts: [account({ id: 'A1' })],
-      employees: [employee({ id: 'E1' }), employee({ id: 'E2' })],
-      employeeAssignments: [
-        empAssign({ id: 'X1', employeeId: 'E1', isPrimary: true }),
-        empAssign({ id: 'X2', employeeId: 'E2', isPrimary: true }),
-      ],
-    });
-    const dup = findings.filter((f) => f.issueType === 'MULTIPLE_PRIMARY_OWNER');
-    expect(dup).toHaveLength(1);
-    expect(dup[0].entityId).toBe('A1');
-  });
-
-  it('flags MISSING_PRIMARY_OWNER when a scope has rows but no primary', () => {
-    const findings = evaluateAssignmentQuality({
-      ...empty,
-      accounts: [account({ id: 'A1' })],
-      employees: [employee({ id: 'E1' })],
-      employeeAssignments: [empAssign({ id: 'X1', isPrimary: false })],
-    });
-    expect(typesOf(findings)).toContain('MISSING_PRIMARY_OWNER');
-  });
-
-  it('does not flag a scope that already has a single primary', () => {
-    const findings = evaluateAssignmentQuality({
-      ...empty,
-      accounts: [account({ id: 'A1' })],
-      employees: [employee({ id: 'E1' })],
-      employeeAssignments: [empAssign({ id: 'X1', isPrimary: true })],
-    });
-    expect(typesOf(findings)).not.toContain('MISSING_PRIMARY_OWNER');
-    expect(typesOf(findings)).not.toContain('MULTIPLE_PRIMARY_OWNER');
   });
 });
 
@@ -307,6 +213,32 @@ describe('evaluateAssignmentQuality — territory-role seat rules', () => {
     expect(typesOf(findings)).toContain('UNKNOWN_EMPLOYEE');
     expect(typesOf(findings)).toContain('INACTIVE_EMPLOYEE_ASSIGNED');
     expect(typesOf(findings)).toContain('INVALID_TERRITORY');
+  });
+
+  it('flags ROLE_MISMATCH when a seat holder is staffed off their home role', () => {
+    const findings = evaluateAssignmentQuality({
+      ...empty,
+      territories: [territory({ id: 'T1' })],
+      employees: [employee({ id: 'E1', roleTypeCode: 'CSAM' })],
+      territoryRoleAssignments: [
+        traSeat({ id: 'S1', employeeId: 'E1', roleTypeCode: 'AE' }),
+      ],
+    });
+    const mismatch = findings.filter((f) => f.issueType === 'ROLE_MISMATCH');
+    expect(mismatch).toHaveLength(1);
+    expect(mismatch[0].severity).toBe('low');
+  });
+
+  it('does not flag ROLE_MISMATCH when home role matches the seat', () => {
+    const findings = evaluateAssignmentQuality({
+      ...empty,
+      territories: [territory({ id: 'T1' })],
+      employees: [employee({ id: 'E1', roleTypeCode: 'AE' })],
+      territoryRoleAssignments: [
+        traSeat({ id: 'S1', employeeId: 'E1', roleTypeCode: 'AE' }),
+      ],
+    });
+    expect(typesOf(findings)).not.toContain('ROLE_MISMATCH');
   });
 
   it('flags MULTIPLE_TERRITORY_ROLE_MEMBER when one seat has two members', () => {

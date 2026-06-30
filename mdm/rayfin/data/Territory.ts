@@ -14,6 +14,10 @@ import {
  *
  * `territoryCode` is unique *within a fiscal year*, not globally — that rule is
  * enforced in the application/quality layer, not as a DB constraint.
+ *
+ * Territory ownership is not stored on the row: it is derived from the seats in
+ * {@link TerritoryRoleAssignment} (the owner is whoever holds the owning role /
+ * role-family, e.g. POD lead), so there is no direct Employee⇔Territory link.
  */
 @entity()
 @authenticated('*')
@@ -32,8 +36,6 @@ export class Territory {
   @text({ max: 64, optional: true }) industryCode?: string;
   @text({ max: 64, optional: true }) region?: string;
   @text({ max: 2, optional: true }) countryCode?: string;
-
-  @uuid({ optional: true }) ownerEmployeeId?: string;
 
   @boolean() isActive!: boolean;
 

@@ -45,8 +45,8 @@ describe('territory-assignment metadata', () => {
   });
 
   it('labels known issue types and humanizes unknown ones', () => {
-    expect(labelledMeta(ISSUE_TYPE_META, 'MULTIPLE_PRIMARY_OWNER').label).toBe(
-      'Multiple primary owners'
+    expect(labelledMeta(ISSUE_TYPE_META, 'ROLE_MISMATCH').label).toBe(
+      'Assigned role differs from home role'
     );
     // An unknown future rule code must still render a non-empty label, not throw.
     const unknown = labelledMeta(ISSUE_TYPE_META, 'SOME_NEW_RULE' as never);

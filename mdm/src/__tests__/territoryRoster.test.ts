@@ -36,20 +36,6 @@ const seat = (
   ...over,
 });
 
-const override = (
-  over: Partial<DeriveAccountTeamArgs['employeeAssignments'][number]> & {
-    id: string;
-  }
-) => ({
-  accountId: 'A1',
-  roleTypeCode: 'AE',
-  fiscalYearId: 'FY26',
-  employeeId: 'E-override',
-  isPrimary: true,
-  currentFlag: true,
-  ...over,
-});
-
 describe('territoryRoleScopeKey', () => {
   it('keys by territory + role + fiscal year', () => {
     expect(
@@ -106,55 +92,18 @@ describe('deriveAccountTeam', () => {
       seat({ id: 'S-ae', roleTypeCode: 'AE', employeeId: 'E-ae' }),
       seat({ id: 'S-csam', roleTypeCode: 'CSAM', employeeId: 'E-csam' }),
     ],
-    employeeAssignments: [],
   };
 
-  it('derives the team straight from the territory roster when no overrides', () => {
+  it('derives the team straight from the territory roster', () => {
     const team = deriveAccountTeam(base);
-    expect(team.map((r) => [r.roleTypeCode, r.employeeId, r.source])).toEqual([
-      ['AE', 'E-ae', 'territory'],
-      ['CSAM', 'E-csam', 'territory'],
+    expect(team.map((r) => [r.roleTypeCode, r.employeeId])).toEqual([
+      ['AE', 'E-ae'],
+      ['CSAM', 'E-csam'],
     ]);
     expect(team[0].territoryId).toBe('T1');
   });
 
-  it('lets a per-account override win over the territory seat for that role', () => {
-    const team = deriveAccountTeam({
-      ...base,
-      employeeAssignments: [
-        override({ id: 'O1', roleTypeCode: 'CSAM', employeeId: 'E-special' }),
-      ],
-    });
-    const csam = team.find((r) => r.roleTypeCode === 'CSAM')!;
-    expect(csam.employeeId).toBe('E-special');
-    expect(csam.source).toBe('override');
-    // AE still comes from the territory.
-    expect(team.find((r) => r.roleTypeCode === 'AE')!.source).toBe('territory');
-  });
-
-  it('adds override-only roles the territory does not staff', () => {
-    const team = deriveAccountTeam({
-      ...base,
-      employeeAssignments: [
-        override({ id: 'O1', roleTypeCode: 'SE', employeeId: 'E-se' }),
-      ],
-    });
-    expect(team.map((r) => r.roleTypeCode)).toEqual(['AE', 'CSAM', 'SE']);
-    expect(team.find((r) => r.roleTypeCode === 'SE')!.source).toBe('override');
-  });
-
-  it('prefers a primary override when several exist for one role', () => {
-    const team = deriveAccountTeam({
-      ...base,
-      employeeAssignments: [
-        override({ id: 'O1', employeeId: 'E-secondary', isPrimary: false }),
-        override({ id: 'O2', employeeId: 'E-primary', isPrimary: true }),
-      ],
-    });
-    expect(team.find((r) => r.roleTypeCode === 'AE')!.employeeId).toBe('E-primary');
-  });
-
-  it('returns nothing when the account is in no territory and has no override', () => {
+  it('returns nothing when the account is in no territory', () => {
     expect(
       deriveAccountTeam({ ...base, territoryAssignments: [] })
     ).toEqual([]);
@@ -168,6 +117,28 @@ describe('deriveAccountTeam', () => {
       ],
     });
     expect(team).toEqual([]);
+  });
+
+  it('ignores roster seats from a different fiscal year', () => {
+    const team = deriveAccountTeam({
+      ...base,
+      territoryRoleAssignments: [
+        seat({ id: 'S-old', employeeId: 'E-old', fiscalYearId: 'FY25' }),
+      ],
+    });
+    expect(team).toEqual([]);
+  });
+
+  it('takes the first current seat per role (single by construction)', () => {
+    const team = deriveAccountTeam({
+      ...base,
+      territoryRoleAssignments: [
+        seat({ id: 'S1', employeeId: 'E1' }),
+        seat({ id: 'S2', employeeId: 'E2' }),
+      ],
+    });
+    expect(team).toHaveLength(1);
+    expect(team[0].employeeId).toBe('E1');
   });
 });
 

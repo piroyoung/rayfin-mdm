@@ -9,10 +9,7 @@ import { logAudit } from '@/services/audit';
 import { listAccounts } from '@/services/accounts';
 import { listEmployees } from '@/services/employees';
 import { listTerritories } from '@/services/territories';
-import {
-  listEmployeeAssignments,
-  listTerritoryAssignments,
-} from '@/services/assignments';
+import { listTerritoryAssignments } from '@/services/assignments';
 import { listTerritoryRoleAssignments } from '@/services/territoryRoleAssignments';
 import {
   evaluateAssignmentQuality,
@@ -124,7 +121,6 @@ export async function runAssignmentQualityChecks(): Promise<number> {
     accounts,
     employees,
     territories,
-    employeeAssignments,
     territoryAssignments,
     territoryRoleAssignments,
     existing,
@@ -132,7 +128,6 @@ export async function runAssignmentQualityChecks(): Promise<number> {
     listAccounts(),
     listEmployees(),
     listTerritories(),
-    listEmployeeAssignments(),
     listTerritoryAssignments(),
     listTerritoryRoleAssignments(),
     listDataQualityIssues(),
@@ -142,7 +137,6 @@ export async function runAssignmentQualityChecks(): Promise<number> {
     accounts,
     employees,
     territories,
-    employeeAssignments,
     territoryAssignments,
     territoryRoleAssignments,
   });

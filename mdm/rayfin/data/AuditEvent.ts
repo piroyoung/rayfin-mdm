@@ -31,7 +31,7 @@ export class AuditEvent {
     | 'territory'
     | 'territory_role'
     | 'fiscal_year'
-    | 'role_type'
+    | 'role'
     | 'assignment'
     | 'source_xref'
     | 'data_quality';

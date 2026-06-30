@@ -9,11 +9,11 @@ import {
   findEmployeeIdentityConflicts,
   type EmployeeInput,
 } from '@/services/employees';
-import { listRoleTypes } from '@/services/roleTypes';
+import { listRoles } from '@/services/roles';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/hooks/useToast';
 import { fmtRelative } from '@/lib/format';
-import type { Employee, RoleType } from '@/domain/types';
+import type { Employee, Role } from '@/domain/types';
 import {
   Badge,
   Button,
@@ -39,7 +39,6 @@ function snapshot(e: Employee): EmployeeInput {
     displayName: e.displayName,
     localName: e.localName,
     jobTitle: e.jobTitle,
-    roleFamily: e.roleFamily,
     roleTypeCode: e.roleTypeCode,
     countryCode: e.countryCode,
     officeLocation: e.officeLocation,
@@ -57,7 +56,7 @@ function EmployeeForm({
 }: {
   initial: EmployeeInput;
   saving: boolean;
-  roles: RoleType[];
+  roles: Role[];
   onCancel: () => void;
   onSubmit: (input: EmployeeInput) => void;
 }) {
@@ -134,13 +133,6 @@ function EmployeeForm({
             ))}
           </Select>
         </Field>
-        <Field label="Role family">
-          <Input
-            value={form.roleFamily ?? ''}
-            onChange={(e) => set({ roleFamily: e.target.value })}
-            placeholder="Sales, Technical…"
-          />
-        </Field>
         <Field label="Country code" hint="ISO-2, e.g. JP">
           <Input
             value={form.countryCode ?? ''}
@@ -187,7 +179,7 @@ function EmployeeForm({
 export function EmployeesPage() {
   const toast = useToast();
   const { data, loading, error, reload } = useAsyncData(listEmployees);
-  const { data: roleData } = useAsyncData(listRoleTypes);
+  const { data: roleData } = useAsyncData(listRoles);
   const roles = useMemo(() => roleData ?? [], [roleData]);
 
   const [search, setSearch] = useState('');

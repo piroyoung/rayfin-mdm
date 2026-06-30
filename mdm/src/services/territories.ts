@@ -15,7 +15,6 @@ export interface TerritoryInput {
   industryCode?: string;
   region?: string;
   countryCode?: string;
-  ownerEmployeeId?: string;
   isActive?: boolean;
 }
 
@@ -35,7 +34,6 @@ const TERRITORY_FIELDS = [
   'industryCode',
   'region',
   'countryCode',
-  'ownerEmployeeId',
   'isActive',
   'validFrom',
   'validTo',

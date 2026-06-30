@@ -16,8 +16,7 @@ import {
  * reading that territory's roster, instead of storing people on every account.
  *
  * The single-seat invariant (one current row per territory/role/fiscal-year) is
- * enforced in the application + quality layer, the same way the single-primary
- * rule is for {@link AccountEmployeeAssignment}. SCD-Type-2 fields keep the
+ * enforced in the application + quality layer. SCD-Type-2 fields keep the
  * history of who held each seat.
  */
 @entity()
@@ -29,7 +28,7 @@ export class TerritoryRoleAssignment {
   @uuid() employeeId!: string;
   @uuid() fiscalYearId!: string;
 
-  /** References {@link RoleType.code} — the stable role business key. */
+  /** References {@link Role.code} — the stable role business key. */
   @text({ max: 64 }) roleTypeCode!: string;
 
   @set('draft', 'submitted', 'approved', 'active', 'retired')
