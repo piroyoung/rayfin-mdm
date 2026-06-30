@@ -10,6 +10,7 @@ import { GuidePage } from '@/pages/GuidePage';
 import { AccountsPage } from '@/pages/AccountsPage';
 import { EmployeesPage } from '@/pages/EmployeesPage';
 import { TerritoriesPage } from '@/pages/TerritoriesPage';
+import { TerritoryRosterPage } from '@/pages/TerritoryRosterPage';
 import { AssignmentsPage } from '@/pages/AssignmentsPage';
 import { IngestPage } from '@/pages/IngestPage';
 import { DataQualityPage } from '@/pages/DataQualityPage';
@@ -65,6 +66,7 @@ function App() {
             <Route path="/accounts" element={<AccountsPage />} />
             <Route path="/employees" element={<EmployeesPage />} />
             <Route path="/territories" element={<TerritoriesPage />} />
+            <Route path="/roster" element={<TerritoryRosterPage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
             <Route path="/ingest" element={<IngestPage />} />
             <Route path="/data-quality" element={<DataQualityPage />} />

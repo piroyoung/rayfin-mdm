@@ -28,6 +28,7 @@ const DOMAIN_LABELS: Record<AuditDomain, string> = {
   change_request: 'Change request',
   employee: 'Employee',
   territory: 'Territory',
+  territory_role: 'Territory role seat',
   fiscal_year: 'Fiscal year',
   role_type: 'Role type',
   assignment: 'Assignment',

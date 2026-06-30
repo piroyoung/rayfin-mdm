@@ -20,8 +20,12 @@ import {
 import { createFiscalYear, listFiscalYears } from '@/services/fiscalYears';
 import { createRoleType } from '@/services/roleTypes';
 import { createEmployee, listEmployees } from '@/services/employees';
-import { createTerritory } from '@/services/territories';
-import { createEmployeeAssignment } from '@/services/assignments';
+import { createTerritory, listTerritories } from '@/services/territories';
+import {
+  createEmployeeAssignment,
+  createTerritoryAssignment,
+} from '@/services/assignments';
+import { createTerritoryRoleAssignment } from '@/services/territoryRoleAssignments';
 import type { AccountInput } from '@/services/accounts';
 import type { FiscalYearInput } from '@/services/fiscalYears';
 import type { RoleTypeInput } from '@/services/roleTypes';
@@ -81,6 +85,9 @@ const REFERENCE_SETS: Record<string, Array<[string, string]>> = {
     ['PARENT_CYCLE', 'Parent hierarchy cycle'],
     ['ALIAS_AMBIGUOUS', 'Ambiguous alias'],
     ['UNRESOLVED_PLACEHOLDER', 'Unresolved placeholder assignee'],
+    ['MULTIPLE_TERRITORY_ROLE_MEMBER', 'Multiple members in one territory role'],
+    ['MULTIPLE_TERRITORY_PER_ACCOUNT', 'Account covered by multiple territories'],
+    ['ROLE_MISMATCH', 'Assigned role differs from home role'],
   ],
   assignment_status: [
     ['draft', 'Draft'],
@@ -280,14 +287,14 @@ const ROLE_TYPES: RoleTypeInput[] = [
 // box. RJOHNSON is intentionally NOT seeded so the sample yields one unknown
 // alias; TBROWN is seeded inactive to exercise the inactive-employee rule.
 const SEED_EMPLOYEES: EmployeeInput[] = [
-  { alias: 'KTANAKA', displayName: 'Kenji Tanaka', upn: 'ktanaka@contoso.com', email: 'ktanaka@contoso.com', jobTitle: 'Account Executive', roleFamily: 'sales', countryCode: 'JP', personnelNumber: 'P0001' },
-  { alias: 'HSATO', displayName: 'Haruki Sato', upn: 'hsato@contoso.com', email: 'hsato@contoso.com', jobTitle: 'Copilot Solution Engineer', roleFamily: 'solution_engineer', countryCode: 'JP', personnelNumber: 'P0002' },
-  { alias: 'KMURATA', displayName: 'Kaori Murata', upn: 'kmurata@contoso.com', email: 'kmurata@contoso.com', jobTitle: 'Customer Success Account Manager', roleFamily: 'sales', countryCode: 'JP', personnelNumber: 'P0003' },
-  { alias: 'SFUKUSAKO', displayName: 'Sora Fukusako', upn: 'sfukusako@contoso.com', email: 'sfukusako@contoso.com', jobTitle: 'Customer Success Account Manager', roleFamily: 'sales', countryCode: 'JP', personnelNumber: 'P0004' },
-  { alias: 'AOKAFOR', displayName: 'Ada Okafor', upn: 'aokafor@contoso.com', email: 'aokafor@contoso.com', jobTitle: 'Solution Engineer', roleFamily: 'solution_engineer', countryCode: 'GB', personnelNumber: 'P0005' },
-  { alias: 'LCHEN', displayName: 'Li Chen', upn: 'lchen@contoso.com', email: 'lchen@contoso.com', jobTitle: 'POD Lead', roleFamily: 'management', countryCode: 'US', personnelNumber: 'P0006' },
-  { alias: 'MGARCIA', displayName: 'Maria Garcia', upn: 'mgarcia@contoso.com', email: 'mgarcia@contoso.com', jobTitle: 'Global Black Belt', roleFamily: 'specialist', countryCode: 'US', personnelNumber: 'P0007' },
-  { alias: 'TBROWN', displayName: 'Taylor Brown', upn: 'tbrown@contoso.com', email: 'tbrown@contoso.com', jobTitle: 'Cloud Engineer', roleFamily: 'technical', countryCode: 'US', personnelNumber: 'P0008', isActive: false },
+  { alias: 'KTANAKA', displayName: 'Kenji Tanaka', upn: 'ktanaka@contoso.com', email: 'ktanaka@contoso.com', jobTitle: 'Account Executive', roleFamily: 'sales', roleTypeCode: 'AE', countryCode: 'JP', personnelNumber: 'P0001' },
+  { alias: 'HSATO', displayName: 'Haruki Sato', upn: 'hsato@contoso.com', email: 'hsato@contoso.com', jobTitle: 'Copilot Solution Engineer', roleFamily: 'solution_engineer', roleTypeCode: 'COPILOT_SE', countryCode: 'JP', personnelNumber: 'P0002' },
+  { alias: 'KMURATA', displayName: 'Kaori Murata', upn: 'kmurata@contoso.com', email: 'kmurata@contoso.com', jobTitle: 'Customer Success Account Manager', roleFamily: 'sales', roleTypeCode: 'CSAM', countryCode: 'JP', personnelNumber: 'P0003' },
+  { alias: 'SFUKUSAKO', displayName: 'Sora Fukusako', upn: 'sfukusako@contoso.com', email: 'sfukusako@contoso.com', jobTitle: 'Account Executive', roleFamily: 'sales', roleTypeCode: 'AE', countryCode: 'JP', personnelNumber: 'P0004' },
+  { alias: 'AOKAFOR', displayName: 'Ada Okafor', upn: 'aokafor@contoso.com', email: 'aokafor@contoso.com', jobTitle: 'Account Executive', roleFamily: 'sales', roleTypeCode: 'AE', countryCode: 'GB', personnelNumber: 'P0005' },
+  { alias: 'LCHEN', displayName: 'Li Chen', upn: 'lchen@contoso.com', email: 'lchen@contoso.com', jobTitle: 'POD Lead', roleFamily: 'management', roleTypeCode: 'POD_LEAD', countryCode: 'US', personnelNumber: 'P0006' },
+  { alias: 'MGARCIA', displayName: 'Maria Garcia', upn: 'mgarcia@contoso.com', email: 'mgarcia@contoso.com', jobTitle: 'Global Black Belt', roleFamily: 'specialist', roleTypeCode: 'GBB', countryCode: 'US', personnelNumber: 'P0007' },
+  { alias: 'TBROWN', displayName: 'Taylor Brown', upn: 'tbrown@contoso.com', email: 'tbrown@contoso.com', jobTitle: 'Cloud Engineer', roleFamily: 'technical', roleTypeCode: 'CE', countryCode: 'US', personnelNumber: 'P0008', isActive: false },
 ];
 
 const SEED_TERRITORIES: TerritoryInput[] = [
@@ -297,20 +304,51 @@ const SEED_TERRITORIES: TerritoryInput[] = [
   { territoryCode: 'JPN.SMECC.POD.01', territoryName: 'Japan SME&C POD 01', territoryType: 'POD', region: 'Japan', countryCode: 'JP' },
 ];
 
-/** account name → role → assignee alias, with a terminal lifecycle status. */
+/**
+ * Canonical roster: each territory staffs ONE member per account-assignable
+ * role for the fiscal year. This is the source of truth that flows down to
+ * every account the territory covers.
+ */
+const SEED_TERRITORY_ROLES: Array<{
+  territory: string;
+  role: string;
+  alias: string;
+  status: 'draft' | 'submitted' | 'approved' | 'active';
+}> = [
+  // Retail 0303 — fully staffed and active.
+  { territory: 'JPN.SMECC.RTL.0303', role: 'AE', alias: 'KTANAKA', status: 'active' },
+  { territory: 'JPN.SMECC.RTL.0303', role: 'CSAM', alias: 'KMURATA', status: 'active' },
+  { territory: 'JPN.SMECC.RTL.0303', role: 'COPILOT_SE', alias: 'HSATO', status: 'active' },
+  // Manufacturing 0101 — AE active, CSAM still in review.
+  { territory: 'JPN.SMECC.MFG.0101', role: 'AE', alias: 'SFUKUSAKO', status: 'active' },
+  { territory: 'JPN.SMECC.MFG.0101', role: 'CSAM', alias: 'KMURATA', status: 'submitted' },
+  // Financial Services 0202 — being stood up.
+  { territory: 'JPN.SMECC.FSI.0202', role: 'AE', alias: 'AOKAFOR', status: 'draft' },
+];
+
+/** account name → territory code → placement status (account coverage). */
+const SEED_ACCOUNT_TERRITORY: Array<{
+  account: string;
+  territory: string;
+  status: 'draft' | 'submitted' | 'approved' | 'active';
+}> = [
+  { account: 'Contoso Ltd', territory: 'JPN.SMECC.RTL.0303', status: 'active' },
+  { account: 'Fabrikam Inc', territory: 'JPN.SMECC.MFG.0101', status: 'active' },
+  { account: 'Northwind Traders', territory: 'JPN.SMECC.FSI.0202', status: 'submitted' },
+];
+
+/**
+ * Per-account overrides — the EXCEPTION layer. These win over the territory
+ * roster for one role on one account. Contoso keeps its territory AE/Copilot SE
+ * but swaps in a dedicated CSAM, demonstrating override-beats-territory.
+ */
 const ASSIGNMENT_SEED: Array<{
   account: string;
   role: string;
   alias: string;
   status: 'draft' | 'submitted' | 'approved' | 'active';
 }> = [
-  { account: 'Contoso Ltd', role: 'AE', alias: 'KTANAKA', status: 'active' },
-  { account: 'Contoso Ltd', role: 'CSAM', alias: 'KMURATA', status: 'approved' },
-  { account: 'Contoso Ltd', role: 'COPILOT_SE', alias: 'HSATO', status: 'active' },
-  { account: 'Fabrikam Inc', role: 'AE', alias: 'SFUKUSAKO', status: 'active' },
-  { account: 'Fabrikam Inc', role: 'CSAM', alias: 'KMURATA', status: 'submitted' },
-  { account: 'Northwind Traders', role: 'AE', alias: 'AOKAFOR', status: 'draft' },
-  { account: 'Adventure Works', role: 'AE', alias: 'LCHEN', status: 'submitted' },
+  { account: 'Contoso Ltd', role: 'CSAM', alias: 'SFUKUSAKO', status: 'active' },
 ];
 
 async function seedFiscalYears(): Promise<void> {
@@ -365,6 +403,74 @@ async function seedAssignments(): Promise<void> {
   }
 }
 
+/** Staff each territory's roster — one member per role for the current FY. */
+async function seedTerritoryRoles(): Promise<void> {
+  const [territories, employees, fiscalYears] = await Promise.all([
+    listTerritories(),
+    listEmployees(),
+    listFiscalYears(),
+  ]);
+  const fy =
+    fiscalYears.find((f) => f.isCurrent) ?? fiscalYears[fiscalYears.length - 1];
+  if (!fy) return;
+
+  const territoryByCode = new Map(
+    territories.map((t) => [t.territoryCode.toLowerCase(), t.id])
+  );
+  const employeeByAlias = new Map(
+    employees
+      .filter((e) => e.alias)
+      .map((e) => [e.alias!.toLowerCase(), e.id])
+  );
+
+  for (const spec of SEED_TERRITORY_ROLES) {
+    const territoryId = territoryByCode.get(spec.territory.toLowerCase());
+    const employeeId = employeeByAlias.get(spec.alias.toLowerCase());
+    if (!territoryId || !employeeId) continue;
+    await createTerritoryRoleAssignment({
+      territoryId,
+      employeeId,
+      fiscalYearId: fy.id,
+      roleTypeCode: spec.role,
+      assignmentStatus: spec.status,
+      sourceSystem: 'Seed',
+    });
+  }
+}
+
+/** Place accounts into their covering territory for the current FY. */
+async function seedAccountTerritories(): Promise<void> {
+  const [accounts, territories, fiscalYears] = await Promise.all([
+    listAccounts(),
+    listTerritories(),
+    listFiscalYears(),
+  ]);
+  const fy =
+    fiscalYears.find((f) => f.isCurrent) ?? fiscalYears[fiscalYears.length - 1];
+  if (!fy) return;
+
+  const accountByName = new Map(
+    accounts.map((c) => [accountName(c).toLowerCase(), c.id])
+  );
+  const territoryByCode = new Map(
+    territories.map((t) => [t.territoryCode.toLowerCase(), t.id])
+  );
+
+  for (const spec of SEED_ACCOUNT_TERRITORY) {
+    const accountId = accountByName.get(spec.account.toLowerCase());
+    const territoryId = territoryByCode.get(spec.territory.toLowerCase());
+    if (!accountId || !territoryId) continue;
+    await createTerritoryAssignment({
+      accountId,
+      territoryId,
+      fiscalYearId: fy.id,
+      assignmentType: 'PRIMARY',
+      assignmentStatus: spec.status,
+      sourceSystem: 'Seed',
+    });
+  }
+}
+
 /** Seed reference + demo data when the backend is empty. Best-effort. */
 export async function ensureSeedData(): Promise<boolean> {
   // Never auto-seed a deployed Fabric backend — demo data is for local dev only.
@@ -381,6 +487,8 @@ export async function ensureSeedData(): Promise<boolean> {
       employeeRows,
       territoryRows,
       assignmentRows,
+      territoryRoleRows,
+      territoryAssignmentRows,
     ] = await Promise.all([
       client.data.ReferenceValue.findMany(),
       client.data.Account.findMany(),
@@ -389,6 +497,8 @@ export async function ensureSeedData(): Promise<boolean> {
       client.data.Employee.findMany(),
       client.data.Territory.findMany(),
       client.data.AccountEmployeeAssignment.findMany(),
+      client.data.TerritoryRoleAssignment.findMany(),
+      client.data.AccountTerritoryAssignment.findMany(),
     ]);
 
     let seeded = false;
@@ -419,6 +529,15 @@ export async function ensureSeedData(): Promise<boolean> {
     // Assignments depend on accounts + employees + fiscal years existing.
     if (assignmentRows.length === 0) {
       await seedAssignments();
+      seeded = true;
+    }
+    // Territory placement + roster depend on territories + employees + FYs.
+    if (territoryAssignmentRows.length === 0) {
+      await seedAccountTerritories();
+      seeded = true;
+    }
+    if (territoryRoleRows.length === 0) {
+      await seedTerritoryRoles();
       seeded = true;
     }
 

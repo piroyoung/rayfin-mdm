@@ -13,6 +13,7 @@ import {
   listEmployeeAssignments,
   listTerritoryAssignments,
 } from '@/services/assignments';
+import { listTerritoryRoleAssignments } from '@/services/territoryRoleAssignments';
 import {
   evaluateAssignmentQuality,
   newFindings,
@@ -125,6 +126,7 @@ export async function runAssignmentQualityChecks(): Promise<number> {
     territories,
     employeeAssignments,
     territoryAssignments,
+    territoryRoleAssignments,
     existing,
   ] = await Promise.all([
     listAccounts(),
@@ -132,6 +134,7 @@ export async function runAssignmentQualityChecks(): Promise<number> {
     listTerritories(),
     listEmployeeAssignments(),
     listTerritoryAssignments(),
+    listTerritoryRoleAssignments(),
     listDataQualityIssues(),
   ]);
 
@@ -141,6 +144,7 @@ export async function runAssignmentQualityChecks(): Promise<number> {
     territories,
     employeeAssignments,
     territoryAssignments,
+    territoryRoleAssignments,
   });
   const toRaise = newFindings(findings, existing);
 

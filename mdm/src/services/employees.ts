@@ -16,6 +16,7 @@ export interface EmployeeInput {
   localName?: string;
   jobTitle?: string;
   roleFamily?: string;
+  roleTypeCode?: string;
   organizationUnitId?: string;
   managerEmployeeId?: string;
   countryCode?: string;
@@ -39,6 +40,7 @@ const EMPLOYEE_FIELDS = [
   'localName',
   'jobTitle',
   'roleFamily',
+  'roleTypeCode',
   'organizationUnitId',
   'managerEmployeeId',
   'countryCode',

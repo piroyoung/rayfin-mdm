@@ -9,9 +9,14 @@ import {
 } from '@microsoft/rayfin-core';
 
 /**
- * Employee / sales-team-member master. The person, not their assignments — a
- * given person can be an AE this year and a manager the next, so their account
- * roles live in {@link AccountEmployeeAssignment}, never on the employee row.
+ * Employee / sales-team-member master. The person, not their account coverage —
+ * which territory seats a person holds lives in {@link TerritoryRoleAssignment},
+ * never on the employee row.
+ *
+ * `roleTypeCode` is the person's *home* role (the role they are normally staffed
+ * as, e.g. an AE). It is a default/identity attribute; the authoritative role
+ * for a given seat is the one on the assignment, so a person can still cover a
+ * different role in a specific territory.
  *
  * Self-references its manager via `managerEmployeeId`. SCD-Type-2 history is
  * carried by validFrom / validTo / currentFlag.
@@ -33,6 +38,9 @@ export class Employee {
 
   @text({ max: 255, optional: true }) jobTitle?: string;
   @text({ max: 128, optional: true }) roleFamily?: string;
+
+  /** Home role — references {@link RoleType.code}. The person's default role. */
+  @text({ max: 64, optional: true }) roleTypeCode?: string;
 
   @uuid({ optional: true }) organizationUnitId?: string;
   @uuid({ optional: true }) managerEmployeeId?: string;

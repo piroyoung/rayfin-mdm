@@ -5,11 +5,13 @@
  * and reusable by both the dashboard (counts) and the persistence layer.
  */
 import { assignmentScopeKey, findMultiplePrimaryGroups } from './assignments';
+import { findMultipleSeatMembers } from './territoryRoster';
 import { detectCycles } from './hierarchy';
 import { findAccountDuplicates } from './duplicates';
 import type {
   AccountEmployeeAssignment,
   AccountTerritoryAssignment,
+  TerritoryRoleAssignment,
   Account,
   DataQualityIssue,
   Employee,
@@ -23,6 +25,7 @@ export interface QualitySnapshot {
   territories: Territory[];
   employeeAssignments: AccountEmployeeAssignment[];
   territoryAssignments: AccountTerritoryAssignment[];
+  territoryRoleAssignments: TerritoryRoleAssignment[];
 }
 
 /** A rule finding, shaped to feed `createDataQualityIssue`. */
@@ -56,6 +59,7 @@ export function evaluateAssignmentQuality(
     territories,
     employeeAssignments,
     territoryAssignments,
+    territoryRoleAssignments,
   } = snapshot;
 
   const findings: QualityFinding[] = [];
@@ -68,6 +72,8 @@ export function evaluateAssignmentQuality(
     accountById.get(id)?.nameLegal ??
     accountById.get(id)?.accountNumber ??
     id;
+  const territoryLabel = (id: string) =>
+    territoryById.get(id)?.territoryCode ?? id;
 
   // ── Account-level: missing external id ──
   for (const a of accounts) {
@@ -150,6 +156,79 @@ export function evaluateAssignmentQuality(
         )}" references a territory that no longer exists.`,
       });
     }
+  }
+
+  // ── One-territory rule: an account placed in more than one current territory ──
+  const territoriesByAccountFy = new Map<string, Set<string>>();
+  for (const t of territoryAssignments) {
+    if (!t.currentFlag) continue;
+    const key = `${t.accountId}|${t.fiscalYearId}`;
+    const set = territoriesByAccountFy.get(key) ?? new Set<string>();
+    set.add(t.territoryId);
+    territoriesByAccountFy.set(key, set);
+  }
+  for (const [key, set] of territoriesByAccountFy) {
+    if (set.size < 2) continue;
+    const accountId = key.split('|')[0];
+    findings.push({
+      entityType: 'account',
+      entityId: accountId,
+      issueType: 'MULTIPLE_TERRITORY_PER_ACCOUNT',
+      severity: 'medium',
+      description: `"${accountLabel(
+        accountId
+      )}" is placed in ${set.size} territories in the same fiscal year; an account should sit in one.`,
+    });
+  }
+
+  // ── Territory-role seat rules (employee validity + single seat) ──
+  for (const seat of territoryRoleAssignments) {
+    if (!seat.currentFlag) continue;
+    const emp = employeeById.get(seat.employeeId);
+    if (!emp) {
+      findings.push({
+        entityType: 'territory_role',
+        entityId: seat.id,
+        issueType: 'UNKNOWN_EMPLOYEE',
+        severity: 'high',
+        description: `Territory "${territoryLabel(
+          seat.territoryId
+        )}" ${seat.roleTypeCode} seat references an unknown employee.`,
+      });
+    } else if (!emp.isActive) {
+      findings.push({
+        entityType: 'territory_role',
+        entityId: seat.id,
+        issueType: 'INACTIVE_EMPLOYEE_ASSIGNED',
+        severity: 'medium',
+        description: `Inactive employee "${emp.displayName}" holds the ${seat.roleTypeCode} seat in territory "${territoryLabel(
+          seat.territoryId
+        )}".`,
+      });
+    }
+    if (!territoryById.has(seat.territoryId)) {
+      findings.push({
+        entityType: 'territory_role',
+        entityId: seat.id,
+        issueType: 'INVALID_TERRITORY',
+        severity: 'high',
+        description: `A ${seat.roleTypeCode} seat references a territory that no longer exists.`,
+      });
+    }
+  }
+
+  // Two or more people in the same territory/role/FY seat — breaks "one seat".
+  for (const group of findMultipleSeatMembers(territoryRoleAssignments)) {
+    const sample = group.rows[0];
+    findings.push({
+      entityType: 'territory_role',
+      entityId: sample.id,
+      issueType: 'MULTIPLE_TERRITORY_ROLE_MEMBER',
+      severity: 'high',
+      description: `Territory "${territoryLabel(sample.territoryId)}" has ${
+        group.rows.length
+      } members in the ${sample.roleTypeCode} seat; only one is allowed.`,
+    });
   }
 
   // ── Primary-owner rules (per account / role / fiscal year scope) ──

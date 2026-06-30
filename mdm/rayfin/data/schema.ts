@@ -10,6 +10,7 @@ import type { ReferenceValue } from './ReferenceValue.js';
 import type { RoleType } from './RoleType.js';
 import type { SourceXref } from './SourceXref.js';
 import type { Territory } from './Territory.js';
+import type { TerritoryRoleAssignment } from './TerritoryRoleAssignment.js';
 
 /**
  * Binds entity names to their classes so `RayfinClient` exposes typed
@@ -27,6 +28,7 @@ export type MdmSchema = {
   Employee: Employee;
   Territory: Territory;
   AccountTerritoryAssignment: AccountTerritoryAssignment;
+  TerritoryRoleAssignment: TerritoryRoleAssignment;
   AccountEmployeeAssignment: AccountEmployeeAssignment;
   SourceXref: SourceXref;
   DataQualityIssue: DataQualityIssue;

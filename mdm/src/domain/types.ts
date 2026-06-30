@@ -15,6 +15,7 @@ import type { RoleType } from '../../rayfin/data/RoleType';
 import type { Employee } from '../../rayfin/data/Employee';
 import type { Territory } from '../../rayfin/data/Territory';
 import type { AccountTerritoryAssignment } from '../../rayfin/data/AccountTerritoryAssignment';
+import type { TerritoryRoleAssignment } from '../../rayfin/data/TerritoryRoleAssignment';
 import type { AccountEmployeeAssignment } from '../../rayfin/data/AccountEmployeeAssignment';
 import type { SourceXref } from '../../rayfin/data/SourceXref';
 import type { DataQualityIssue } from '../../rayfin/data/DataQualityIssue';
@@ -26,6 +27,7 @@ export type {
   Employee,
   Territory,
   AccountTerritoryAssignment,
+  TerritoryRoleAssignment,
   AccountEmployeeAssignment,
   SourceXref,
   DataQualityIssue,
@@ -139,6 +141,9 @@ export const ISSUE_TYPE_META: Record<string, Labelled> = {
   INVALID_TERRITORY: { label: 'Invalid territory' },
   MULTIPLE_PRIMARY_OWNER: { label: 'Multiple primary owners' },
   MISSING_PRIMARY_OWNER: { label: 'Missing primary owner' },
+  MULTIPLE_TERRITORY_ROLE_MEMBER: { label: 'Multiple members in a territory seat' },
+  MULTIPLE_TERRITORY_PER_ACCOUNT: { label: 'Account in multiple territories' },
+  ROLE_MISMATCH: { label: 'Assigned role differs from home role' },
   INVALID_REFERENCE_VALUE: { label: 'Invalid reference value' },
   FY_DATE_MISMATCH: { label: 'Fiscal-year date mismatch' },
   PARENT_CYCLE: { label: 'Parent hierarchy cycle' },
