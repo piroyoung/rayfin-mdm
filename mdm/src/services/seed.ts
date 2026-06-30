@@ -3,9 +3,13 @@
  * of demo master records (including intentional duplicates and varied quality)
  * so the dashboard, quality and dedup views are meaningful out of the box.
  *
- * Idempotent: guarded by a localStorage flag and by emptiness checks.
+ * Seeding only runs against a local backend (dev). Deployed Fabric backends are
+ * never auto-seeded — production data is managed explicitly, not generated.
+ *
+ * Idempotent: guarded by the local-backend check, a localStorage flag, and by
+ * per-entity emptiness checks.
  */
-import { getRayfinClient } from '@/services/rayfinClient';
+import { getRayfinClient, isLocalBackend } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { createCustomer, setCustomerStatus, listCustomers } from '@/services/customers';
 import { createProduct, setProductStatus } from '@/services/products';
@@ -451,6 +455,8 @@ async function seedAssignments(): Promise<void> {
 
 /** Seed reference + demo data when the backend is empty. Best-effort. */
 export async function ensureSeedData(): Promise<boolean> {
+  // Never auto-seed a deployed Fabric backend — demo data is for local dev only.
+  if (!isLocalBackend()) return false;
   if (localStorage.getItem(SEED_FLAG)) return false;
 
   try {
