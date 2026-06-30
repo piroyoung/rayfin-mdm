@@ -29,6 +29,7 @@ export class AuditEvent {
     | 'change_request'
     | 'employee'
     | 'territory'
+    | 'territory_role'
     | 'fiscal_year'
     | 'role_type'
     | 'assignment'

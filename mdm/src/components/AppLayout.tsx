@@ -14,6 +14,7 @@ type IconName =
   | 'accounts'
   | 'employees'
   | 'territories'
+  | 'roster'
   | 'assignments'
   | 'ingest'
   | 'dataQuality'
@@ -31,6 +32,8 @@ const ICONS: Record<IconName, string> = {
     'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   territories:
     'M9 20l-5.4 1.8a1 1 0 01-1.3-.95V6.4a1 1 0 01.68-.95L9 3.5m0 16.5l6-2.5m-6 2.5V3.5m6 14l5.4 1.8a1 1 0 001.3-.95V3.6a1 1 0 00-.68-.95L15 1.5m0 16v-16m0 0L9 3.5',
+  roster:
+    'M17 20h5v-1a4 4 0 00-3-3.87M9 20H4v-1a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zM7 9h.01M17 9h.01',
   assignments:
     'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
   dataQuality:
@@ -69,6 +72,7 @@ const NAV: Array<{ to: string; label: string; icon: IconName; end?: boolean }> =
     { to: '/accounts', label: 'Accounts', icon: 'accounts' },
     { to: '/employees', label: 'Employees', icon: 'employees' },
     { to: '/territories', label: 'Territories', icon: 'territories' },
+    { to: '/roster', label: 'Territory Roster', icon: 'roster' },
     { to: '/assignments', label: 'Assignments', icon: 'assignments' },
     { to: '/ingest', label: 'Ingest', icon: 'ingest' },
     { to: '/data-quality', label: 'Data Quality', icon: 'dataQuality' },

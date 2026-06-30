@@ -9,10 +9,11 @@ import {
   findEmployeeIdentityConflicts,
   type EmployeeInput,
 } from '@/services/employees';
+import { listRoleTypes } from '@/services/roleTypes';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/hooks/useToast';
 import { fmtRelative } from '@/lib/format';
-import type { Employee } from '@/domain/types';
+import type { Employee, RoleType } from '@/domain/types';
 import {
   Badge,
   Button,
@@ -39,6 +40,7 @@ function snapshot(e: Employee): EmployeeInput {
     localName: e.localName,
     jobTitle: e.jobTitle,
     roleFamily: e.roleFamily,
+    roleTypeCode: e.roleTypeCode,
     countryCode: e.countryCode,
     officeLocation: e.officeLocation,
     employmentStatus: e.employmentStatus,
@@ -49,11 +51,13 @@ function snapshot(e: Employee): EmployeeInput {
 function EmployeeForm({
   initial,
   saving,
+  roles,
   onCancel,
   onSubmit,
 }: {
   initial: EmployeeInput;
   saving: boolean;
+  roles: RoleType[];
   onCancel: () => void;
   onSubmit: (input: EmployeeInput) => void;
 }) {
@@ -117,6 +121,19 @@ function EmployeeForm({
             onChange={(e) => set({ jobTitle: e.target.value })}
           />
         </Field>
+        <Field label="Home role" hint="The role this person is normally staffed as">
+          <Select
+            value={form.roleTypeCode ?? ''}
+            onChange={(e) => set({ roleTypeCode: e.target.value || undefined })}
+          >
+            <option value="">— None —</option>
+            {roles.map((r) => (
+              <option key={r.code} value={r.code}>
+                {r.code} — {r.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label="Role family">
           <Input
             value={form.roleFamily ?? ''}
@@ -170,6 +187,8 @@ function EmployeeForm({
 export function EmployeesPage() {
   const toast = useToast();
   const { data, loading, error, reload } = useAsyncData(listEmployees);
+  const { data: roleData } = useAsyncData(listRoleTypes);
+  const roles = useMemo(() => roleData ?? [], [roleData]);
 
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>(
@@ -407,6 +426,7 @@ export function EmployeesPage() {
         <EmployeeForm
           initial={editing ? snapshot(editing) : EMPTY}
           saving={saving}
+          roles={roles}
           onCancel={() => {
             setCreating(false);
             setEditing(null);

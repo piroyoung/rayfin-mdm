@@ -17,6 +17,7 @@ import type {
   DataQualityIssue,
   Employee,
   Territory,
+  TerritoryRoleAssignment,
 } from '@/domain/types';
 
 const NOW = new Date('2026-01-01T00:00:00Z');
@@ -93,12 +94,29 @@ const terrAssign = (
     ...over,
   }) as AccountTerritoryAssignment;
 
+const traSeat = (
+  over: Partial<TerritoryRoleAssignment> & { id: string }
+): TerritoryRoleAssignment =>
+  ({
+    territoryId: 'T1',
+    employeeId: 'E1',
+    fiscalYearId: 'FY26',
+    roleTypeCode: 'AE',
+    assignmentStatus: 'active',
+    startDate: NOW,
+    currentFlag: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...over,
+  }) as TerritoryRoleAssignment;
+
 const empty: QualitySnapshot = {
   accounts: [],
   employees: [],
   territories: [],
   employeeAssignments: [],
   territoryAssignments: [],
+  territoryRoleAssignments: [],
 };
 
 const typesOf = (fs: QualityFinding[]) => fs.map((f) => f.issueType).sort();
@@ -244,6 +262,78 @@ describe('evaluateAssignmentQuality — territory + alias rules', () => {
     });
     const amb = findings.filter((f) => f.issueType === 'ALIAS_AMBIGUOUS');
     expect(amb.map((f) => f.entityId).sort()).toEqual(['E1', 'E2']);
+  });
+});
+
+describe('evaluateAssignmentQuality — territory-role seat rules', () => {
+  it('flags MULTIPLE_TERRITORY_PER_ACCOUNT when an account sits in 2 territories', () => {
+    const findings = evaluateAssignmentQuality({
+      ...empty,
+      accounts: [account({ id: 'A1' })],
+      territories: [territory({ id: 'T1' }), territory({ id: 'T2' })],
+      territoryAssignments: [
+        terrAssign({ id: 'P1', territoryId: 'T1' }),
+        terrAssign({ id: 'P2', territoryId: 'T2' }),
+      ],
+    });
+    const multi = findings.filter(
+      (f) => f.issueType === 'MULTIPLE_TERRITORY_PER_ACCOUNT'
+    );
+    expect(multi).toHaveLength(1);
+    expect(multi[0].entityId).toBe('A1');
+  });
+
+  it('does not flag an account placed in a single territory', () => {
+    const findings = evaluateAssignmentQuality({
+      ...empty,
+      accounts: [account({ id: 'A1' })],
+      territories: [territory({ id: 'T1' })],
+      territoryAssignments: [terrAssign({ id: 'P1', territoryId: 'T1' })],
+    });
+    expect(typesOf(findings)).not.toContain('MULTIPLE_TERRITORY_PER_ACCOUNT');
+  });
+
+  it('flags unknown / inactive / invalid-territory seats on the roster', () => {
+    const findings = evaluateAssignmentQuality({
+      ...empty,
+      territories: [territory({ id: 'T1' })],
+      employees: [employee({ id: 'E-inactive', isActive: false })],
+      territoryRoleAssignments: [
+        traSeat({ id: 'S1', employeeId: 'E-missing' }),
+        traSeat({ id: 'S2', roleTypeCode: 'CSAM', employeeId: 'E-inactive' }),
+        traSeat({ id: 'S3', roleTypeCode: 'SE', territoryId: 'T-gone', employeeId: 'E-missing' }),
+      ],
+    });
+    expect(typesOf(findings)).toContain('UNKNOWN_EMPLOYEE');
+    expect(typesOf(findings)).toContain('INACTIVE_EMPLOYEE_ASSIGNED');
+    expect(typesOf(findings)).toContain('INVALID_TERRITORY');
+  });
+
+  it('flags MULTIPLE_TERRITORY_ROLE_MEMBER when one seat has two members', () => {
+    const findings = evaluateAssignmentQuality({
+      ...empty,
+      territories: [territory({ id: 'T1' })],
+      employees: [employee({ id: 'E1' }), employee({ id: 'E2' })],
+      territoryRoleAssignments: [
+        traSeat({ id: 'S1', employeeId: 'E1' }),
+        traSeat({ id: 'S2', employeeId: 'E2' }),
+      ],
+    });
+    const dup = findings.filter(
+      (f) => f.issueType === 'MULTIPLE_TERRITORY_ROLE_MEMBER'
+    );
+    expect(dup).toHaveLength(1);
+  });
+
+  it('ignores non-current seats entirely', () => {
+    const findings = evaluateAssignmentQuality({
+      ...empty,
+      territories: [territory({ id: 'T1' })],
+      territoryRoleAssignments: [
+        traSeat({ id: 'S1', employeeId: 'E-missing', currentFlag: false }),
+      ],
+    });
+    expect(findings).toEqual([]);
   });
 });
 

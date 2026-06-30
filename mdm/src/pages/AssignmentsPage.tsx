@@ -10,6 +10,7 @@ import { listFiscalYears } from '@/services/fiscalYears';
 import { listAccountAssignableRoles } from '@/services/roleTypes';
 import { listEmployees } from '@/services/employees';
 import { listTerritories } from '@/services/territories';
+import { listTerritoryRoleAssignmentsForTerritory } from '@/services/territoryRoleAssignments';
 import {
   createEmployeeAssignment,
   createTerritoryAssignment,
@@ -29,10 +30,16 @@ import {
 } from '@/domain/assignmentWorkflow';
 import { fyAssignmentChanges } from '@/domain/assignmentViews';
 import {
+  currentTerritoryIdsForAccount,
+  deriveAccountTeam,
+  type DerivedAccountRole,
+} from '@/domain/territoryRoster';
+import {
   ASSIGNMENT_STATUS_META,
   tonedMeta,
   type AccountEmployeeAssignment,
   type AccountTerritoryAssignment,
+  type TerritoryRoleAssignment,
   type Account,
   type Employee,
   type FiscalYear,
@@ -75,6 +82,8 @@ const loadRefs = async (): Promise<RefData> => {
 interface AccountAssignments {
   employee: AccountEmployeeAssignment[];
   territory: AccountTerritoryAssignment[];
+  /** Roster seats of the territories this account currently sits in. */
+  territoryRoles: TerritoryRoleAssignment[];
   /** All fiscal years for this account, used to derive FY-over-FY changes. */
   allEmployee: AccountEmployeeAssignment[];
 }
@@ -82,6 +91,7 @@ interface AccountAssignments {
 const EMPTY_ASSIGNMENTS: AccountAssignments = {
   employee: [],
   territory: [],
+  territoryRoles: [],
   allEmployee: [],
 };
 
@@ -229,11 +239,22 @@ export function AssignmentsPage() {
       listTerritoryAssignmentsForAccount(accountId),
       listEmployeeAssignmentsForAccount(accountId),
     ]);
+    const fyTerritory = fyId
+      ? territory.filter((t) => t.fiscalYearId === fyId)
+      : territory;
+    // Roster seats of the territories this account currently sits in.
+    const territoryIds = fyId
+      ? currentTerritoryIdsForAccount(accountId, fyId, territory)
+      : [];
+    const rosterLists = await Promise.all(
+      territoryIds.map((tid) =>
+        listTerritoryRoleAssignmentsForTerritory(tid, fyId || undefined)
+      )
+    );
     return {
       employee,
-      territory: fyId
-        ? territory.filter((t) => t.fiscalYearId === fyId)
-        : territory,
+      territory: fyTerritory,
+      territoryRoles: rosterLists.flat(),
       allEmployee,
     };
   }, [accountId, fyId]);
@@ -267,6 +288,20 @@ export function AssignmentsPage() {
     }
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [assignments.employee]);
+
+  // Derived account team: who covers each role, from the territory roster with
+  // per-account overrides winning. This is the canonical "who covers this
+  // account" view under the territory-first model.
+  const derivedTeam = useMemo<DerivedAccountRole[]>(() => {
+    if (!accountId || !fyId) return [];
+    return deriveAccountTeam({
+      accountId,
+      fiscalYearId: fyId,
+      territoryAssignments: assignments.territory,
+      territoryRoleAssignments: assignments.territoryRoles,
+      employeeAssignments: assignments.employee,
+    });
+  }, [accountId, fyId, assignments]);
 
   // Previous fiscal year (immediately before the selected one in sort order).
   const prevFiscalYear = useMemo(() => {
@@ -355,7 +390,7 @@ export function AssignmentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Assignments"
-        subtitle="Account coverage by role and fiscal year — the normalised view of the territory workbook."
+        subtitle="Account coverage by role and fiscal year. Most roles are inherited from the account's territory roster; the rows below are per-account overrides."
       />
 
       <Card className="p-4">
@@ -483,11 +518,75 @@ export function AssignmentsPage() {
             </div>
           </Card>
 
+          {/* Derived team (from territory roster + overrides) */}
+          <Card>
+            <div className="border-b border-gray-100 p-4">
+              <p className="text-sm font-medium text-gray-700">
+                Team — derived from territory roster
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Who covers this account per role. Roles come from the roster of
+                the account's territory; a per-account override takes precedence.
+              </p>
+            </div>
+            {assignmentsLoading ? (
+              <div className="flex justify-center py-12">
+                <Spinner label="Deriving team…" />
+              </div>
+            ) : derivedTeam.length === 0 ? (
+              <EmptyState
+                title="No derived coverage"
+                description="Place this account in a territory and staff that territory's roster, or add a per-account override below."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Member</th>
+                      <th className="px-4 py-3">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {derivedTeam.map((row) => (
+                      <tr key={row.roleTypeCode} className="hover:bg-gray-50/60">
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-gray-900">
+                            {roleName(row.roleTypeCode)}
+                          </span>
+                          <span className="ml-1 text-xs text-gray-400">
+                            {row.roleTypeCode}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-900">
+                          {empName(row.employeeId)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {row.source === 'override' ? (
+                            <Badge tone="amber">Override</Badge>
+                          ) : (
+                            <Badge tone="blue">
+                              Territory{' '}
+                              {row.territoryId
+                                ? `· ${terrCode(row.territoryId)}`
+                                : ''}
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
           {/* Role coverage matrix */}
           <Card>
             <div className="flex items-center justify-between border-b border-gray-100 p-4">
               <p className="text-sm font-medium text-gray-700">
-                Role coverage
+                Role coverage overrides
                 {selectedAccount ? ` — ${accountName(selectedAccount)}` : ''}
               </p>
               <Tooltip label="この口座に担当者を割り当てます" side="bottom">
@@ -508,8 +607,8 @@ export function AssignmentsPage() {
               </div>
             ) : byRole.length === 0 ? (
               <EmptyState
-                title="No coverage yet"
-                description="Add the first role assignment for this account and fiscal year."
+                title="No overrides"
+                description="This account inherits its team from its territory roster. Add an override only to deviate for a specific role."
               />
             ) : (
               <div className="overflow-x-auto">
