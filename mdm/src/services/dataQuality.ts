@@ -6,6 +6,18 @@
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
+import { listCustomers } from '@/services/customers';
+import { listEmployees } from '@/services/employees';
+import { listTerritories } from '@/services/territories';
+import {
+  listEmployeeAssignments,
+  listTerritoryAssignments,
+} from '@/services/assignments';
+import {
+  evaluateAssignmentQuality,
+  newFindings,
+  ASSIGNMENT_QUALITY_PROCESS,
+} from '@/domain/assignmentQuality';
 import type {
   DataQualityIssue,
   IssueSeverity,
@@ -100,6 +112,49 @@ export async function createDataQualityIssues(
     count += 1;
   }
   return count;
+}
+
+/**
+ * Run the assignment data-quality rules over the current data and persist any
+ * issues that are not already open. Returns the number of new issues raised.
+ */
+export async function runAssignmentQualityChecks(): Promise<number> {
+  const [
+    accounts,
+    employees,
+    territories,
+    employeeAssignments,
+    territoryAssignments,
+    existing,
+  ] = await Promise.all([
+    listCustomers(),
+    listEmployees(),
+    listTerritories(),
+    listEmployeeAssignments(),
+    listTerritoryAssignments(),
+    listDataQualityIssues(),
+  ]);
+
+  const findings = evaluateAssignmentQuality({
+    accounts,
+    employees,
+    territories,
+    employeeAssignments,
+    territoryAssignments,
+  });
+  const toRaise = newFindings(findings, existing);
+
+  const created = await createDataQualityIssues(
+    toRaise.map((f) => ({
+      entityType: f.entityType,
+      entityId: f.entityId,
+      issueType: f.issueType,
+      severity: f.severity,
+      description: f.description,
+      detectedByProcess: ASSIGNMENT_QUALITY_PROCESS,
+    }))
+  );
+  return created;
 }
 
 async function setResolution(

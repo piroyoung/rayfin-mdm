@@ -1,0 +1,269 @@
+/**
+ * Pure data-quality rule engine for the territory-assignment domain. Given a
+ * snapshot of the master + bridge tables it returns the list of issues that
+ * should exist — with no Rayfin/network dependency, so it is fully unit-testable
+ * and reusable by both the dashboard (counts) and the persistence layer.
+ */
+import { assignmentScopeKey, findMultiplePrimaryGroups } from './assignments';
+import { detectCycles } from './hierarchy';
+import { findCustomerDuplicates } from './duplicates';
+import type {
+  AccountEmployeeAssignment,
+  AccountTerritoryAssignment,
+  Customer,
+  DataQualityIssue,
+  Employee,
+  IssueSeverity,
+  Territory,
+} from './types';
+
+export interface QualitySnapshot {
+  accounts: Customer[];
+  employees: Employee[];
+  territories: Territory[];
+  employeeAssignments: AccountEmployeeAssignment[];
+  territoryAssignments: AccountTerritoryAssignment[];
+}
+
+/** A rule finding, shaped to feed `createDataQualityIssue`. */
+export interface QualityFinding {
+  entityType: string;
+  entityId?: string;
+  issueType: string;
+  severity: IssueSeverity;
+  description: string;
+}
+
+const PROCESS = 'assignmentQuality';
+
+const norm = (v?: string | null) => (v ?? '').trim().toLowerCase();
+
+/** Stable identity for a finding, so re-runs don't duplicate open issues. */
+export function findingKey(f: {
+  entityType: string;
+  entityId?: string;
+  issueType: string;
+}): string {
+  return `${f.entityType}|${f.entityId ?? ''}|${f.issueType}`;
+}
+
+export function evaluateAssignmentQuality(
+  snapshot: QualitySnapshot
+): QualityFinding[] {
+  const {
+    accounts,
+    employees,
+    territories,
+    employeeAssignments,
+    territoryAssignments,
+  } = snapshot;
+
+  const findings: QualityFinding[] = [];
+  const employeeById = new Map(employees.map((e) => [e.id, e]));
+  const territoryById = new Map(territories.map((t) => [t.id, t]));
+  const accountById = new Map(accounts.map((a) => [a.id, a]));
+  const roleOf = (a: AccountEmployeeAssignment) => a.roleTypeCode;
+  const accountLabel = (id: string) =>
+    accountById.get(id)?.name ?? accountById.get(id)?.customerCode ?? id;
+
+  // ── Account-level: missing external id ──
+  for (const a of accounts) {
+    if (a.status === 'merged' || a.status === 'archived') continue;
+    if (!a.msSalesAccountId && !a.crmAccountId) {
+      findings.push({
+        entityType: 'account',
+        entityId: a.id,
+        issueType: 'MISSING_ACCOUNT_ID',
+        severity: 'medium',
+        description: `Account "${a.name}" has no MSSales or CRM account id.`,
+      });
+    }
+  }
+
+  // ── Account-level: duplicate candidates ──
+  for (const group of findCustomerDuplicates(accounts)) {
+    for (const rec of group.records) {
+      findings.push({
+        entityType: 'account',
+        entityId: rec.id,
+        issueType: 'DUPLICATE_ACCOUNT',
+        severity: 'high',
+        description: `Possible duplicate account (${group.reasons.join(
+          ', '
+        )}) — ${group.records.length} records in the group.`,
+      });
+    }
+  }
+
+  // ── Employee-assignment-level rules ──
+  for (const a of employeeAssignments) {
+    if (!a.currentFlag) continue;
+    const emp = employeeById.get(a.employeeId);
+    if (!emp) {
+      findings.push({
+        entityType: 'assignment',
+        entityId: a.id,
+        issueType: 'UNKNOWN_EMPLOYEE',
+        severity: 'high',
+        description: `Assignment on "${accountLabel(
+          a.accountId
+        )}" (${roleOf(a)}) references an unknown employee.`,
+      });
+    } else if (!emp.isActive) {
+      findings.push({
+        entityType: 'assignment',
+        entityId: a.id,
+        issueType: 'INACTIVE_EMPLOYEE_ASSIGNED',
+        severity: 'medium',
+        description: `Inactive employee "${emp.displayName}" is assigned to "${accountLabel(
+          a.accountId
+        )}" (${roleOf(a)}).`,
+      });
+    }
+    if (a.territoryId && !territoryById.has(a.territoryId)) {
+      findings.push({
+        entityType: 'assignment',
+        entityId: a.id,
+        issueType: 'INVALID_TERRITORY',
+        severity: 'high',
+        description: `Assignment on "${accountLabel(
+          a.accountId
+        )}" references a territory that no longer exists.`,
+      });
+    }
+  }
+
+  // ── Territory-placement: invalid territory ──
+  for (const t of territoryAssignments) {
+    if (!t.currentFlag) continue;
+    if (!territoryById.has(t.territoryId)) {
+      findings.push({
+        entityType: 'assignment',
+        entityId: t.id,
+        issueType: 'INVALID_TERRITORY',
+        severity: 'high',
+        description: `Territory placement for "${accountLabel(
+          t.accountId
+        )}" references a territory that no longer exists.`,
+      });
+    }
+  }
+
+  // ── Primary-owner rules (per account / role / fiscal year scope) ──
+  const currentEmp = employeeAssignments.filter((a) => a.currentFlag);
+
+  // Multiple primaries.
+  for (const group of findMultiplePrimaryGroups(currentEmp)) {
+    const sample = group.rows[0];
+    findings.push({
+      entityType: 'account',
+      entityId: sample.accountId,
+      issueType: 'MULTIPLE_PRIMARY_OWNER',
+      severity: 'high',
+      description: `"${accountLabel(sample.accountId)}" has ${
+        group.rows.length
+      } primary owners for role ${sample.roleTypeCode}.`,
+    });
+  }
+
+  // Missing primary: a scope that has rows but none flagged primary.
+  const byScope = new Map<string, AccountEmployeeAssignment[]>();
+  for (const a of currentEmp) {
+    const key = assignmentScopeKey(a);
+    const arr = byScope.get(key) ?? [];
+    arr.push(a);
+    byScope.set(key, arr);
+  }
+  for (const rows of byScope.values()) {
+    if (rows.length === 0) continue;
+    if (rows.some((r) => r.isPrimary)) continue;
+    const sample = rows[0];
+    findings.push({
+      entityType: 'account',
+      entityId: sample.accountId,
+      issueType: 'MISSING_PRIMARY_OWNER',
+      severity: 'medium',
+      description: `"${accountLabel(
+        sample.accountId
+      )}" has no primary owner for role ${sample.roleTypeCode}.`,
+    });
+  }
+
+  // ── Territory hierarchy cycles ──
+  const cycleIds = detectCycles(
+    territories.map((t) => ({ id: t.id, parentId: t.parentTerritoryId }))
+  );
+  for (const id of cycleIds) {
+    const t = territoryById.get(id);
+    findings.push({
+      entityType: 'territory',
+      entityId: id,
+      issueType: 'PARENT_CYCLE',
+      severity: 'high',
+      description: `Territory "${
+        t?.territoryCode ?? id
+      }" is part of a parent hierarchy cycle.`,
+    });
+  }
+
+  // ── Ambiguous employee alias (active employees sharing an alias) ──
+  const aliasGroups = new Map<string, Employee[]>();
+  for (const e of employees) {
+    if (!e.isActive) continue;
+    const key = norm(e.alias);
+    if (!key) continue;
+    const arr = aliasGroups.get(key) ?? [];
+    arr.push(e);
+    aliasGroups.set(key, arr);
+  }
+  for (const group of aliasGroups.values()) {
+    if (group.length < 2) continue;
+    for (const e of group) {
+      findings.push({
+        entityType: 'employee',
+        entityId: e.id,
+        issueType: 'ALIAS_AMBIGUOUS',
+        severity: 'medium',
+        description: `Alias "${e.alias}" is shared by ${group.length} active employees.`,
+      });
+    }
+  }
+
+  return findings;
+}
+
+/**
+ * Diff the freshly-evaluated findings against the issues already in the table,
+ * returning only those that are genuinely new (no open/in-progress issue with
+ * the same entity + rule). Resolved/dismissed issues do not suppress a re-raise.
+ */
+export function newFindings(
+  findings: QualityFinding[],
+  existing: DataQualityIssue[]
+): QualityFinding[] {
+  const openKeys = new Set(
+    existing
+      .filter(
+        (i) =>
+          i.resolutionStatus === 'open' || i.resolutionStatus === 'in_progress'
+      )
+      .map((i) =>
+        findingKey({
+          entityType: i.entityType,
+          entityId: i.entityId,
+          issueType: i.issueType,
+        })
+      )
+  );
+  const seen = new Set<string>();
+  const out: QualityFinding[] = [];
+  for (const f of findings) {
+    const key = findingKey(f);
+    if (openKeys.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push(f);
+  }
+  return out;
+}
+
+export { PROCESS as ASSIGNMENT_QUALITY_PROCESS };

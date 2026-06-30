@@ -12,6 +12,7 @@ import { ProductsPage } from '@/pages/ProductsPage';
 import { EmployeesPage } from '@/pages/EmployeesPage';
 import { TerritoriesPage } from '@/pages/TerritoriesPage';
 import { AssignmentsPage } from '@/pages/AssignmentsPage';
+import { DataQualityPage } from '@/pages/DataQualityPage';
 import { StewardshipPage } from '@/pages/StewardshipPage';
 import { ReferenceDataPage } from '@/pages/ReferenceDataPage';
 import { AuditPage } from '@/pages/AuditPage';
@@ -66,6 +67,7 @@ function App() {
             <Route path="/employees" element={<EmployeesPage />} />
             <Route path="/territories" element={<TerritoriesPage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
+            <Route path="/data-quality" element={<DataQualityPage />} />
             <Route path="/stewardship" element={<StewardshipPage />} />
             <Route path="/reference" element={<ReferenceDataPage />} />
             <Route path="/audit" element={<AuditPage />} />

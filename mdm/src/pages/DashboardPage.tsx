@@ -6,6 +6,7 @@ import { listCustomers } from '@/services/customers';
 import { listProducts } from '@/services/products';
 import { listChangeRequests } from '@/services/stewardship';
 import { listAudit } from '@/services/audit';
+import { listOpenDataQualityIssues } from '@/services/dataQuality';
 import { ensureSeedData } from '@/services/seed';
 import {
   findCustomerDuplicates,
@@ -19,6 +20,7 @@ import {
   type AuditEvent,
   type ChangeRequest,
   type Customer,
+  type DataQualityIssue,
   type Product,
 } from '@/domain/types';
 import { useAsyncData } from '@/hooks/useAsyncData';
@@ -38,6 +40,7 @@ interface DashboardData {
   products: Product[];
   changeRequests: ChangeRequest[];
   audit: AuditEvent[];
+  openIssues: DataQualityIssue[];
 }
 
 function avg(values: number[]): number {
@@ -48,13 +51,15 @@ function avg(values: number[]): number {
 export function DashboardPage() {
   const { data, loading, error } = useAsyncData<DashboardData>(async () => {
     await ensureSeedData();
-    const [customers, products, changeRequests, audit] = await Promise.all([
-      listCustomers(),
-      listProducts(),
-      listChangeRequests(),
-      listAudit(),
-    ]);
-    return { customers, products, changeRequests, audit };
+    const [customers, products, changeRequests, audit, openIssues] =
+      await Promise.all([
+        listCustomers(),
+        listProducts(),
+        listChangeRequests(),
+        listAudit(),
+        listOpenDataQualityIssues(),
+      ]);
+    return { customers, products, changeRequests, audit, openIssues };
   });
 
   const stats = useMemo(() => {
@@ -71,6 +76,10 @@ export function DashboardPage() {
     const dupGroups =
       findCustomerDuplicates(customers).length +
       findProductDuplicates(products).length;
+    const openIssues = data.openIssues.length;
+    const criticalIssues = data.openIssues.filter(
+      (i) => i.severity === 'critical' || i.severity === 'high'
+    ).length;
     const qualityScores = [
       ...activeCustomers.map((c) => c.qualityScore ?? 0),
       ...activeProducts.map((p) => p.qualityScore ?? 0),
@@ -84,6 +93,8 @@ export function DashboardPage() {
       pending,
       openCrs,
       dupGroups,
+      openIssues,
+      criticalIssues,
       avgQuality: avg(qualityScores),
     };
   }, [data]);
@@ -169,12 +180,35 @@ export function DashboardPage() {
                 {stats.pending}
               </Badge>
             </div>
-            <div className="flex gap-2 pt-1 text-sm">
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2.5 text-sm">
+              <span className="text-gray-600">Open data-quality issues</span>
+              <Badge
+                tone={
+                  stats.criticalIssues > 0
+                    ? 'red'
+                    : stats.openIssues > 0
+                      ? 'amber'
+                      : 'green'
+                }
+              >
+                {stats.openIssues}
+                {stats.criticalIssues > 0
+                  ? ` · ${stats.criticalIssues} high+`
+                  : ''}
+              </Badge>
+            </div>
+            <div className="flex gap-3 pt-1 text-sm">
               <Link
                 to="/customers"
                 className="font-medium text-indigo-600 hover:text-indigo-500"
               >
                 Review customers →
+              </Link>
+              <Link
+                to="/data-quality"
+                className="font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                Triage issues →
               </Link>
             </div>
           </div>
