@@ -34,6 +34,15 @@ export class Employee {
   @text({ max: 255, optional: true }) upn?: string;
   @email({ optional: true }) email?: string;
 
+  /**
+   * Durable Microsoft Entra ID object id (oid) of this person's tenant user.
+   * Every employee is a user in this Entra tenant, so the signed-in user (from
+   * Fabric brokered auth) can be matched to — or used to provision — their
+   * employee row. Unlike alias / upn / email this key never changes, so it is
+   * the stable anchor for "this is me" self-linking.
+   */
+  @text({ max: 64, optional: true }) entraObjectId?: string;
+
   @text({ max: 255 }) displayName!: string;
   @text({ max: 255, optional: true }) localName?: string;
 

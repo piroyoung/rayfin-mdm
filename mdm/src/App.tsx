@@ -8,9 +8,12 @@ import { ToastProvider } from '@/hooks/useToast';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { GuidePage } from '@/pages/GuidePage';
 import { AccountsPage } from '@/pages/AccountsPage';
+import { RolesPage } from '@/pages/RolesPage';
 import { EmployeesPage } from '@/pages/EmployeesPage';
 import { TerritoriesPage } from '@/pages/TerritoriesPage';
 import { TerritoryRosterPage } from '@/pages/TerritoryRosterPage';
+import { TerritoryAccountAssignmentsPage } from '@/pages/TerritoryAccountAssignmentsPage';
+import { TerritoryRoleAssignmentsPage } from '@/pages/TerritoryRoleAssignmentsPage';
 import { AssignmentsPage } from '@/pages/AssignmentsPage';
 import { IngestPage } from '@/pages/IngestPage';
 import { DataQualityPage } from '@/pages/DataQualityPage';
@@ -63,9 +66,18 @@ function App() {
           >
             <Route index element={<DashboardPage />} />
             <Route path="/guide" element={<GuidePage />} />
+            <Route path="/roles" element={<RolesPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
             <Route path="/employees" element={<EmployeesPage />} />
             <Route path="/territories" element={<TerritoriesPage />} />
+            <Route
+              path="/territory-account-assignments"
+              element={<TerritoryAccountAssignmentsPage />}
+            />
+            <Route
+              path="/territory-role-assignments"
+              element={<TerritoryRoleAssignmentsPage />}
+            />
             <Route path="/roster" element={<TerritoryRosterPage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
             <Route path="/ingest" element={<IngestPage />} />
