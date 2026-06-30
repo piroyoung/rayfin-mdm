@@ -16,12 +16,18 @@ import {
   deleteEmployeeAssignment,
   listEmployeeAssignmentsForAccount,
   listTerritoryAssignmentsForAccount,
+  reassignEmployeeAssignment,
   setEmployeeAssignmentStatus,
   setPrimaryEmployeeAssignment,
   setTerritoryAssignmentStatus,
 } from '@/services/assignments';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/hooks/useToast';
+import {
+  canTransition,
+  workflowActions,
+} from '@/domain/assignmentWorkflow';
+import { fyAssignmentChanges } from '@/domain/assignmentViews';
 import {
   ASSIGNMENT_STATUS_META,
   tonedMeta,
@@ -69,9 +75,15 @@ const loadRefs = async (): Promise<RefData> => {
 interface AccountAssignments {
   employee: AccountEmployeeAssignment[];
   territory: AccountTerritoryAssignment[];
+  /** All fiscal years for this account, used to derive FY-over-FY changes. */
+  allEmployee: AccountEmployeeAssignment[];
 }
 
-const EMPTY_ASSIGNMENTS: AccountAssignments = { employee: [], territory: [] };
+const EMPTY_ASSIGNMENTS: AccountAssignments = {
+  employee: [],
+  territory: [],
+  allEmployee: [],
+};
 
 function AddAssignmentForm({
   roles,
@@ -195,6 +207,9 @@ export function AssignmentsPage() {
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reassignTarget, setReassignTarget] =
+    useState<AccountEmployeeAssignment | null>(null);
+  const [reassignTo, setReassignTo] = useState('');
 
   // Default the fiscal year to the current one once refs load.
   useEffect(() => {
@@ -209,15 +224,17 @@ export function AssignmentsPage() {
     reload,
   } = useAsyncData<AccountAssignments>(async () => {
     if (!accountId) return EMPTY_ASSIGNMENTS;
-    const [employee, territory] = await Promise.all([
+    const [employee, territory, allEmployee] = await Promise.all([
       listEmployeeAssignmentsForAccount(accountId, fyId || undefined),
       listTerritoryAssignmentsForAccount(accountId),
+      listEmployeeAssignmentsForAccount(accountId),
     ]);
     return {
       employee,
       territory: fyId
         ? territory.filter((t) => t.fiscalYearId === fyId)
         : territory,
+      allEmployee,
     };
   }, [accountId, fyId]);
 
@@ -250,6 +267,21 @@ export function AssignmentsPage() {
     }
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [assignments.employee]);
+
+  // Previous fiscal year (immediately before the selected one in sort order).
+  const prevFiscalYear = useMemo(() => {
+    const idx = fiscalYears.findIndex((fy) => fy.id === fyId);
+    return idx > 0 ? fiscalYears[idx - 1] : undefined;
+  }, [fiscalYears, fyId]);
+
+  // Derived FY-over-FY owner changes (published primary owner per role).
+  const fyChanges = useMemo(() => {
+    if (!prevFiscalYear || !fyId) return [];
+    const all = assignments.allEmployee;
+    const prev = all.filter((r) => r.fiscalYearId === prevFiscalYear.id);
+    const cur = all.filter((r) => r.fiscalYearId === fyId);
+    return fyAssignmentChanges(prev, cur).filter((c) => c.changed);
+  }, [assignments.allEmployee, prevFiscalYear, fyId]);
 
   async function runAction(
     id: string,
@@ -305,6 +337,19 @@ export function AssignmentsPage() {
 
   const selectedAccount = customers.find((c) => c.id === accountId);
   const territoryPlacement = assignments.territory.find((t) => t.currentFlag);
+
+  async function handleReassign() {
+    if (!reassignTarget || !reassignTo) return;
+    const target = reassignTarget;
+    const newEmployeeId = reassignTo;
+    setReassignTarget(null);
+    setReassignTo('');
+    await runAction(
+      target.id,
+      () => reassignEmployeeAssignment(target, newEmployeeId),
+      'Owner reassigned — history preserved.'
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -415,7 +460,7 @@ export function AssignmentsPage() {
                 </Select>
               </div>
               {territoryPlacement &&
-                territoryPlacement.assignmentStatus !== 'retired' && (
+                canTransition(territoryPlacement.assignmentStatus, 'retired') && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -547,23 +592,45 @@ export function AssignmentsPage() {
                                   </Button>
                                 </Tooltip>
                               )}
-                              {a.assignmentStatus !== 'active' && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  loading={busyId === a.id}
-                                  onClick={() =>
-                                    runAction(
-                                      a.id,
-                                      () =>
-                                        setEmployeeAssignmentStatus(a, 'active'),
-                                      'Assignment activated.'
-                                    )
-                                  }
-                                >
-                                  Activate
-                                </Button>
+                              {workflowActions(a.assignmentStatus).map(
+                                (act) => (
+                                  <Button
+                                    key={act.to}
+                                    size="sm"
+                                    variant={act.variant}
+                                    loading={busyId === a.id}
+                                    onClick={() =>
+                                      runAction(
+                                        a.id,
+                                        () =>
+                                          setEmployeeAssignmentStatus(
+                                            a,
+                                            act.to
+                                          ),
+                                        `Assignment → ${act.to}.`
+                                      )
+                                    }
+                                  >
+                                    {act.label}
+                                  </Button>
+                                )
                               )}
+                              {a.currentFlag &&
+                                a.assignmentStatus !== 'retired' && (
+                                  <Tooltip label="担当者を差し替えます（履歴は保持）">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      loading={busyId === a.id}
+                                      onClick={() => {
+                                        setReassignTo('');
+                                        setReassignTarget(a);
+                                      }}
+                                    >
+                                      Reassign
+                                    </Button>
+                                  </Tooltip>
+                                )}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -589,6 +656,43 @@ export function AssignmentsPage() {
               </div>
             )}
           </Card>
+
+          {/* FY-over-FY owner changes (derived, not stored) */}
+          {prevFiscalYear && fyChanges.length > 0 && (
+            <Card className="p-4">
+              <p className="text-sm font-medium text-gray-700">
+                Owner changes vs {prevFiscalYear.code}
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Derived from the published primary owner of each role — the
+                workbook&apos;s <code>AE_Change</code> equivalent.
+              </p>
+              <ul className="mt-3 divide-y divide-gray-50">
+                {fyChanges.map((c) => (
+                  <li
+                    key={`${c.accountId}|${c.roleTypeCode}`}
+                    className="flex items-center gap-3 py-2 text-sm"
+                  >
+                    <span className="w-28 shrink-0 font-medium text-gray-900">
+                      {roleName(c.roleTypeCode)}
+                    </span>
+                    <span className="text-gray-500">
+                      {c.previousEmployeeId
+                        ? empName(c.previousEmployeeId)
+                        : '—'}
+                    </span>
+                    <span className="text-gray-400">→</span>
+                    <span className="text-gray-900">
+                      {c.currentEmployeeId ? empName(c.currentEmployeeId) : '—'}
+                    </span>
+                    <Badge tone="amber" className="ml-auto">
+                      Changed
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </>
       )}
 
@@ -606,6 +710,50 @@ export function AssignmentsPage() {
           onCancel={() => setAdding(false)}
           onSubmit={handleAdd}
         />
+      </Modal>
+
+      <Modal
+        open={reassignTarget !== null}
+        onClose={() => setReassignTarget(null)}
+        title="Reassign owner"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setReassignTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              disabled={!reassignTo || reassignTo === reassignTarget?.employeeId}
+              loading={busyId === reassignTarget?.id}
+              onClick={handleReassign}
+            >
+              Reassign
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-3 text-sm text-gray-600">
+          The current owner row is end-dated and a fresh draft row is opened for
+          the new owner. History is preserved.
+        </p>
+        <Field label="New owner">
+          <Select
+            value={reassignTo}
+            onChange={(e) => setReassignTo(e.target.value)}
+          >
+            <option value="">Select an employee…</option>
+            {employees
+              .filter((e) => e.id !== reassignTarget?.employeeId)
+              .map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.alias ? `${e.displayName} (${e.alias})` : e.displayName}
+                </option>
+              ))}
+          </Select>
+        </Field>
       </Modal>
     </div>
   );
