@@ -25,6 +25,7 @@ import {
   type RecordStatus,
 } from '@/domain/types';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useCrudForm } from '@/hooks/useCrudForm';
 import { useToast } from '@/hooks/useToast';
 import { fmtRelative } from '@/lib/format';
 import {
@@ -32,7 +33,6 @@ import {
   Button,
   Card,
   ConfirmDialog,
-  EmptyState,
   Field,
   Input,
   Modal,
@@ -40,9 +40,14 @@ import {
   ProgressBar,
   QualityBadge,
   Select,
-  Spinner,
   Tooltip,
 } from '@/components/ui';
+import {
+  FormActions,
+  ListCard,
+  ListToolbar,
+  RowActions,
+} from '@/components/listing';
 
 const EMPTY: AccountInput = {
   accountNumber: '',
@@ -268,14 +273,7 @@ function AccountForm({
         )}
       </div>
 
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" type="submit" loading={saving} disabled={!valid}>
-          Save
-        </Button>
-      </div>
+      <FormActions onCancel={onCancel} saving={saving} disabled={!valid} />
     </form>
   );
 }
@@ -286,9 +284,7 @@ export function AccountsPage() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RecordStatus | 'all'>('all');
-  const [editing, setEditing] = useState<Account | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [seed, setSeed] = useState<AccountInput | null>(null);
+  const form = useCrudForm<Account, AccountInput>();
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Account | null>(null);
@@ -322,16 +318,14 @@ export function AccountsPage() {
   async function handleSave(input: AccountInput) {
     setSaving(true);
     try {
-      if (editing) {
-        await updateAccount(editing.id, input);
+      if (form.editing) {
+        await updateAccount(form.editing.id, input);
         toast('Account updated.', 'success');
       } else {
         await createAccount(input);
         toast('Account created.', 'success');
       }
-      setEditing(null);
-      setCreating(false);
-      setSeed(null);
+      form.close();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed.', 'error');
@@ -375,14 +369,7 @@ export function AccountsPage() {
         subtitle="Account master records, stewardship and golden-record management."
         actions={
           <Tooltip label="新しいアカウントマスターレコードを作成します" side="bottom">
-            <Button
-              variant="primary"
-              onClick={() => {
-                setEditing(null);
-                setSeed(null);
-                setCreating(true);
-              }}
-            >
+            <Button variant="primary" onClick={() => form.startCreate()}>
               + New account
             </Button>
           </Tooltip>
@@ -426,49 +413,42 @@ export function AccountsPage() {
         </Card>
       )}
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 p-4">
-          <div className="relative min-w-0 flex-1">
-            <Input
-              placeholder="Search number, name, CRM/MSSales ID…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Select
-            className="w-44"
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value as RecordStatus | 'all')
-            }
+      <ListCard
+        toolbar={
+          <ListToolbar
+            search={search}
+            onSearch={setSearch}
+            placeholder="Search number, name, CRM/MSSales ID…"
           >
-            <option value="all">All statuses</option>
-            {optionsOf(RECORD_STATUS_META).map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" label="Loading accounts…" />
-          </div>
-        ) : error ? (
-          <EmptyState title="Couldn't load accounts" description={error} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            title="No accounts found"
-            description={
-              accounts.length === 0
-                ? 'Create your first account master record.'
-                : 'Try adjusting your search or filters.'
-            }
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <Select
+              className="w-44"
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as RecordStatus | 'all')
+              }
+            >
+              <option value="all">All statuses</option>
+              {optionsOf(RECORD_STATUS_META).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </ListToolbar>
+        }
+        loading={loading}
+        error={error}
+        isEmpty={filtered.length === 0}
+        loadingLabel="Loading accounts…"
+        errorTitle="Couldn't load accounts"
+        emptyTitle="No accounts found"
+        emptyDescription={
+          accounts.length === 0
+            ? 'Create your first account master record.'
+            : 'Try adjusting your search or filters.'
+        }
+      >
+        <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
                   <th className="px-4 py-3">Account</th>
@@ -518,17 +498,13 @@ export function AccountsPage() {
                       {fmtRelative(a.updatedAt)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                      <RowActions>
                         {a.status !== 'merged' && (
                           <Tooltip label="このアカウント情報を編集します">
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                setSeed(null);
-                                setCreating(false);
-                                setEditing(a);
-                              }}
+                              onClick={() => form.startEdit(a)}
                             >
                               Edit
                             </Button>
@@ -538,11 +514,12 @@ export function AccountsPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setEditing(null);
-                              setSeed({ ...snapshot(a), accountNumber: '' });
-                              setCreating(true);
-                            }}
+                            onClick={() =>
+                              form.startDuplicate({
+                                ...snapshot(a),
+                                accountNumber: '',
+                              })
+                            }
                           >
                             Copy
                           </Button>
@@ -591,40 +568,30 @@ export function AccountsPage() {
                               </Button>
                             </Tooltip>
                           )}
-                      </div>
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        </table>
+      </ListCard>
 
       <Modal
-        open={creating || editing !== null}
-        onClose={() => {
-          setCreating(false);
-          setEditing(null);
-          setSeed(null);
-        }}
+        open={form.open}
+        onClose={form.close}
         title={
-          editing
-            ? `Edit ${accountName(editing)}`
-            : seed
+          form.editing
+            ? `Edit ${accountName(form.editing)}`
+            : form.mode === 'duplicate'
               ? 'New account (copy)'
               : 'New account'
         }
         size="lg"
       >
         <AccountForm
-          initial={editing ? snapshot(editing) : (seed ?? EMPTY)}
+          initial={form.editing ? snapshot(form.editing) : (form.seed ?? EMPTY)}
           saving={saving}
-          onCancel={() => {
-            setCreating(false);
-            setEditing(null);
-            setSeed(null);
-          }}
+          onCancel={form.close}
           onSubmit={handleSave}
         />
       </Modal>

@@ -13,22 +13,29 @@ import { listRoles } from '@/services/roles';
 import { employeeInputFromUser } from '@/services/identity';
 import { useAuth } from '@/hooks/AuthContext';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useCrudForm } from '@/hooks/useCrudForm';
 import { useToast } from '@/hooks/useToast';
 import { fmtRelative } from '@/lib/format';
+import { matchesActive, type ActiveFilterValue } from '@/lib/listing';
 import type { Employee, Role } from '@/domain/types';
 import {
-  Badge,
   Button,
   Card,
-  EmptyState,
   Field,
   Input,
   Modal,
   PageHeader,
   Select,
-  Spinner,
   Tooltip,
 } from '@/components/ui';
+import {
+  ActiveFilter,
+  FormActions,
+  ListCard,
+  ListToolbar,
+  RowActions,
+  StatusBadge,
+} from '@/components/listing';
 
 const EMPTY: EmployeeInput = { displayName: '' };
 
@@ -197,14 +204,7 @@ function EmployeeForm({
         </Field>
       </div>
 
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" type="submit" loading={saving} disabled={!valid}>
-          Save
-        </Button>
-      </div>
+      <FormActions onCancel={onCancel} saving={saving} disabled={!valid} />
     </form>
   );
 }
@@ -216,12 +216,8 @@ export function EmployeesPage() {
   const roles = useMemo(() => roleData ?? [], [roleData]);
 
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>(
-    'all'
-  );
-  const [editing, setEditing] = useState<Employee | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [seed, setSeed] = useState<EmployeeInput | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilterValue>('all');
+  const form = useCrudForm<Employee, EmployeeInput>();
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -239,8 +235,7 @@ export function EmployeesPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter((e) => {
-      if (activeFilter === 'active' && !e.isActive) return false;
-      if (activeFilter === 'inactive' && e.isActive) return false;
+      if (!matchesActive(activeFilter, e.isActive)) return false;
       if (!q) return true;
       return [e.displayName, e.localName, e.alias, e.upn, e.email, e.jobTitle]
         .filter(Boolean)
@@ -251,16 +246,14 @@ export function EmployeesPage() {
   async function handleSave(input: EmployeeInput) {
     setSaving(true);
     try {
-      if (editing) {
-        await updateEmployee(editing.id, input);
+      if (form.editing) {
+        await updateEmployee(form.editing.id, input);
         toast('Employee updated.', 'success');
       } else {
         await createEmployee(input);
         toast('Employee created.', 'success');
       }
-      setEditing(null);
-      setCreating(false);
-      setSeed(null);
+      form.close();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed.', 'error');
@@ -289,14 +282,7 @@ export function EmployeesPage() {
         subtitle="Sales-team-member master. Roles are assignments, not columns — manage coverage on the Assignments page."
         actions={
           <Tooltip label="新しい従業員マスターを作成します" side="bottom">
-            <Button
-              variant="primary"
-              onClick={() => {
-                setEditing(null);
-                setSeed(null);
-                setCreating(true);
-              }}
-            >
+            <Button variant="primary" onClick={() => form.startCreate()}>
               + New employee
             </Button>
           </Tooltip>
@@ -320,46 +306,29 @@ export function EmployeesPage() {
         </Card>
       )}
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 p-4">
-          <div className="relative min-w-0 flex-1">
-            <Input
-              placeholder="Search name, alias, UPN, email…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Select
-            className="w-44"
-            value={activeFilter}
-            onChange={(e) =>
-              setActiveFilter(e.target.value as 'all' | 'active' | 'inactive')
-            }
+      <ListCard
+        toolbar={
+          <ListToolbar
+            search={search}
+            onSearch={setSearch}
+            placeholder="Search name, alias, UPN, email…"
           >
-            <option value="all">All</option>
-            <option value="active">Active only</option>
-            <option value="inactive">Inactive only</option>
-          </Select>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" label="Loading employees…" />
-          </div>
-        ) : error ? (
-          <EmptyState title="Couldn't load employees" description={error} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            title="No employees found"
-            description={
-              employees.length === 0
-                ? 'Create your first employee record.'
-                : 'Try adjusting your search or filters.'
-            }
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <ActiveFilter value={activeFilter} onChange={setActiveFilter} />
+          </ListToolbar>
+        }
+        loading={loading}
+        error={error}
+        isEmpty={filtered.length === 0}
+        loadingLabel="Loading employees…"
+        errorTitle="Couldn't load employees"
+        emptyTitle="No employees found"
+        emptyDescription={
+          employees.length === 0
+            ? 'Create your first employee record.'
+            : 'Try adjusting your search or filters.'
+        }
+      >
+        <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
                   <th className="px-4 py-3">Employee</th>
@@ -395,24 +364,18 @@ export function EmployeesPage() {
                       {e.jobTitle ?? '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={e.isActive ? 'green' : 'slate'}>
-                        {e.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <StatusBadge active={e.isActive} />
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {fmtRelative(e.updatedAt)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                      <RowActions>
                         <Tooltip label="この従業員情報を編集します">
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setSeed(null);
-                              setCreating(false);
-                              setEditing(e);
-                            }}
+                            onClick={() => form.startEdit(e)}
                           >
                             Edit
                           </Button>
@@ -421,11 +384,12 @@ export function EmployeesPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setEditing(null);
-                              setSeed({ ...snapshot(e), entraObjectId: undefined });
-                              setCreating(true);
-                            }}
+                            onClick={() =>
+                              form.startDuplicate({
+                                ...snapshot(e),
+                                entraObjectId: undefined,
+                              })
+                            }
                           >
                             Copy
                           </Button>
@@ -446,41 +410,31 @@ export function EmployeesPage() {
                             {e.isActive ? 'Deactivate' : 'Activate'}
                           </Button>
                         </Tooltip>
-                      </div>
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        </table>
+      </ListCard>
 
       <Modal
-        open={creating || editing !== null}
-        onClose={() => {
-          setCreating(false);
-          setEditing(null);
-          setSeed(null);
-        }}
+        open={form.open}
+        onClose={form.close}
         title={
-          editing
-            ? `Edit ${editing.displayName}`
-            : seed
+          form.editing
+            ? `Edit ${form.editing.displayName}`
+            : form.mode === 'duplicate'
               ? 'New employee (copy)'
               : 'New employee'
         }
         size="lg"
       >
         <EmployeeForm
-          initial={editing ? snapshot(editing) : (seed ?? EMPTY)}
+          initial={form.editing ? snapshot(form.editing) : (form.seed ?? EMPTY)}
           saving={saving}
           roles={roles}
-          onCancel={() => {
-            setCreating(false);
-            setEditing(null);
-            setSeed(null);
-          }}
+          onCancel={form.close}
           onSubmit={handleSave}
         />
       </Modal>

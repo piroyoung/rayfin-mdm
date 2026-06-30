@@ -10,21 +10,26 @@ import {
 } from '@/services/territories';
 import { listFiscalYears } from '@/services/fiscalYears';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useCrudForm } from '@/hooks/useCrudForm';
 import { useToast } from '@/hooks/useToast';
+import { lookupFn } from '@/lib/listing';
 import type { FiscalYear, Territory } from '@/domain/types';
 import {
-  Badge,
   Button,
-  Card,
-  EmptyState,
   Field,
   Input,
   Modal,
   PageHeader,
   Select,
-  Spinner,
   Tooltip,
 } from '@/components/ui';
+import {
+  FormActions,
+  ListCard,
+  ListToolbar,
+  RowActions,
+  StatusBadge,
+} from '@/components/listing';
 
 interface TerritoryPageData {
   territories: Territory[];
@@ -178,14 +183,7 @@ function TerritoryForm({
         </Field>
       </div>
 
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" type="submit" loading={saving} disabled={!valid}>
-          Save
-        </Button>
-      </div>
+      <FormActions onCancel={onCancel} saving={saving} disabled={!valid} />
     </form>
   );
 }
@@ -195,19 +193,17 @@ export function TerritoriesPage() {
   const { data, loading, error, reload } = useAsyncData(loadTerritoryPage);
 
   const [search, setSearch] = useState('');
-  const [editing, setEditing] = useState<Territory | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [seed, setSeed] = useState<TerritoryInput | null>(null);
+  const form = useCrudForm<Territory, TerritoryInput>();
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const territories = useMemo(() => data?.territories ?? [], [data]);
   const fiscalYears = useMemo(() => data?.fiscalYears ?? [], [data]);
 
-  const fyCode = useMemo(() => {
-    const map = new Map(fiscalYears.map((fy) => [fy.id, fy.code]));
-    return (id?: string) => (id ? (map.get(id) ?? '—') : '—');
-  }, [fiscalYears]);
+  const fyCode = useMemo(
+    () => lookupFn(fiscalYears, (fy) => fy.id, (fy) => fy.code, () => '—'),
+    [fiscalYears]
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -222,16 +218,14 @@ export function TerritoriesPage() {
   async function handleSave(input: TerritoryInput) {
     setSaving(true);
     try {
-      if (editing) {
-        await updateTerritory(editing.id, input);
+      if (form.editing) {
+        await updateTerritory(form.editing.id, input);
         toast('Territory updated.', 'success');
       } else {
         await createTerritory(input);
         toast('Territory created.', 'success');
       }
-      setEditing(null);
-      setCreating(false);
-      setSeed(null);
+      form.close();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed.', 'error');
@@ -260,49 +254,34 @@ export function TerritoriesPage() {
         subtitle="Territory / POD / sales-unit master, scoped by fiscal year."
         actions={
           <Tooltip label="新しいテリトリーを作成します" side="bottom">
-            <Button
-              variant="primary"
-              onClick={() => {
-                setEditing(null);
-                setSeed(null);
-                setCreating(true);
-              }}
-            >
+            <Button variant="primary" onClick={() => form.startCreate()}>
               + New territory
             </Button>
           </Tooltip>
         }
       />
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 p-4">
-          <div className="relative min-w-0 flex-1">
-            <Input
-              placeholder="Search code, name, type, region…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" label="Loading territories…" />
-          </div>
-        ) : error ? (
-          <EmptyState title="Couldn't load territories" description={error} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            title="No territories found"
-            description={
-              territories.length === 0
-                ? 'Create your first territory.'
-                : 'Try adjusting your search.'
-            }
+      <ListCard
+        toolbar={
+          <ListToolbar
+            search={search}
+            onSearch={setSearch}
+            placeholder="Search code, name, type, region…"
           />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+        }
+        loading={loading}
+        error={error}
+        isEmpty={filtered.length === 0}
+        loadingLabel="Loading territories…"
+        errorTitle="Couldn't load territories"
+        emptyTitle="No territories found"
+        emptyDescription={
+          territories.length === 0
+            ? 'Create your first territory.'
+            : 'Try adjusting your search.'
+        }
+      >
+        <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
                   <th className="px-4 py-3">Territory</th>
@@ -328,24 +307,18 @@ export function TerritoriesPage() {
                       {t.territoryType ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      {fyCode(t.fiscalYearId)}
+                      {fyCode(t.fiscalYearId ?? '')}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={t.isActive ? 'green' : 'slate'}>
-                        {t.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <StatusBadge active={t.isActive} />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                      <RowActions>
                         <Tooltip label="このテリトリーを編集します">
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setSeed(null);
-                              setCreating(false);
-                              setEditing(t);
-                            }}
+                            onClick={() => form.startEdit(t)}
                           >
                             Edit
                           </Button>
@@ -354,11 +327,12 @@ export function TerritoriesPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setEditing(null);
-                              setSeed({ ...snapshot(t), territoryCode: '' });
-                              setCreating(true);
-                            }}
+                            onClick={() =>
+                              form.startDuplicate({
+                                ...snapshot(t),
+                                territoryCode: '',
+                              })
+                            }
                           >
                             Copy
                           </Button>
@@ -379,43 +353,33 @@ export function TerritoriesPage() {
                             {t.isActive ? 'Deactivate' : 'Activate'}
                           </Button>
                         </Tooltip>
-                      </div>
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        </table>
+      </ListCard>
 
       <Modal
-        open={creating || editing !== null}
-        onClose={() => {
-          setCreating(false);
-          setEditing(null);
-          setSeed(null);
-        }}
+        open={form.open}
+        onClose={form.close}
         title={
-          editing
-            ? `Edit ${editing.territoryName}`
-            : seed
+          form.editing
+            ? `Edit ${form.editing.territoryName}`
+            : form.mode === 'duplicate'
               ? 'New territory (copy)'
               : 'New territory'
         }
         size="lg"
       >
         <TerritoryForm
-          initial={editing ? snapshot(editing) : (seed ?? EMPTY)}
-          selfId={editing?.id}
+          initial={form.editing ? snapshot(form.editing) : (form.seed ?? EMPTY)}
+          selfId={form.editing?.id}
           territories={territories}
           fiscalYears={fiscalYears}
           saving={saving}
-          onCancel={() => {
-            setCreating(false);
-            setEditing(null);
-            setSeed(null);
-          }}
+          onCancel={form.close}
           onSubmit={handleSave}
         />
       </Modal>
