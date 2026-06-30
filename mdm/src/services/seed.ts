@@ -53,6 +53,30 @@ const REFERENCE_SETS: Record<string, Array<[string, string]>> = {
     ['accessories', 'Accessories'],
     ['services', 'Services'],
   ],
+  territory_type: [
+    ['POD', 'POD'],
+    ['SALES_TERRITORY', 'Sales territory'],
+    ['SEGMENT', 'Segment'],
+    ['INDUSTRY', 'Industry'],
+  ],
+  role_category: [
+    ['sales', 'Sales'],
+    ['technical', 'Technical'],
+    ['solution_engineer', 'Solution Engineer'],
+    ['specialist', 'Specialist'],
+    ['management', 'Management'],
+  ],
+  issue_type: [
+    ['MISSING_ACCOUNT_ID', 'Missing account ID'],
+    ['DUPLICATE_ACCOUNT', 'Duplicate account candidate'],
+    ['UNKNOWN_EMPLOYEE', 'Unknown employee'],
+    ['INACTIVE_EMPLOYEE_ASSIGNED', 'Inactive employee assigned'],
+    ['INVALID_TERRITORY', 'Invalid territory'],
+    ['MULTIPLE_PRIMARY_OWNER', 'Multiple primary owners'],
+    ['MISSING_PRIMARY_OWNER', 'Missing primary owner'],
+    ['PARENT_CYCLE', 'Parent hierarchy cycle'],
+    ['ALIAS_AMBIGUOUS', 'Ambiguous alias'],
+  ],
 };
 
 interface SeedCustomer extends CustomerInput {

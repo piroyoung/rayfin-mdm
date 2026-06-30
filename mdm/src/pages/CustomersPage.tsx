@@ -65,6 +65,16 @@ function snapshot(c: Customer): CustomerInput {
     stateProvince: c.stateProvince,
     postalCode: c.postalCode,
     countryCode: c.countryCode,
+    msSalesAccountId: c.msSalesAccountId,
+    crmAccountId: c.crmAccountId,
+    parentAccountId: c.parentAccountId,
+    globalParentAccountId: c.globalParentAccountId,
+    verticalCode: c.verticalCode,
+    subVerticalCode: c.subVerticalCode,
+    verticalCategoryCode: c.verticalCategoryCode,
+    subSegmentCode: c.subSegmentCode,
+    region: c.region,
+    prefecture: c.prefecture,
     sourceSystem: c.sourceSystem,
   };
 }
@@ -204,6 +214,63 @@ function CustomerForm({
           />
         </Field>
       </div>
+
+      <details className="mt-5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+        <summary className="cursor-pointer text-sm font-medium text-gray-700">
+          Account master extensions (territory / vertical)
+        </summary>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="MSSales account ID">
+            <Input
+              value={form.msSalesAccountId ?? ''}
+              onChange={(e) => set({ msSalesAccountId: e.target.value })}
+            />
+          </Field>
+          <Field label="CRM account ID">
+            <Input
+              value={form.crmAccountId ?? ''}
+              onChange={(e) => set({ crmAccountId: e.target.value })}
+            />
+          </Field>
+          <Field label="Region">
+            <Input
+              value={form.region ?? ''}
+              onChange={(e) => set({ region: e.target.value })}
+              placeholder="JP East, JP West…"
+            />
+          </Field>
+          <Field label="Prefecture">
+            <Input
+              value={form.prefecture ?? ''}
+              onChange={(e) => set({ prefecture: e.target.value })}
+            />
+          </Field>
+          <Field label="Vertical code">
+            <Input
+              value={form.verticalCode ?? ''}
+              onChange={(e) => set({ verticalCode: e.target.value })}
+            />
+          </Field>
+          <Field label="Sub-vertical code">
+            <Input
+              value={form.subVerticalCode ?? ''}
+              onChange={(e) => set({ subVerticalCode: e.target.value })}
+            />
+          </Field>
+          <Field label="Vertical category code">
+            <Input
+              value={form.verticalCategoryCode ?? ''}
+              onChange={(e) => set({ verticalCategoryCode: e.target.value })}
+            />
+          </Field>
+          <Field label="Sub-segment code">
+            <Input
+              value={form.subSegmentCode ?? ''}
+              onChange={(e) => set({ subSegmentCode: e.target.value })}
+            />
+          </Field>
+        </div>
+      </details>
 
       <div className="mt-5 rounded-lg bg-gray-50 p-3">
         <div className="mb-1 flex items-center justify-between text-sm">

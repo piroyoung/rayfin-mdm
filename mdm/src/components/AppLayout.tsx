@@ -13,6 +13,9 @@ type IconName =
   | 'dashboard'
   | 'customers'
   | 'products'
+  | 'employees'
+  | 'territories'
+  | 'assignments'
   | 'stewardship'
   | 'reference'
   | 'audit';
@@ -25,6 +28,12 @@ const ICONS: Record<IconName, string> = {
     'M17 20h5v-1a4 4 0 00-3-3.87M9 20H4v-1a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zm6-4a3 3 0 10-2-5.24M5 11a3 3 0 002-5.24',
   products:
     'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-14L4 7m8 4v10M4 7v10l8 4',
+  employees:
+    'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+  territories:
+    'M9 20l-5.4 1.8a1 1 0 01-1.3-.95V6.4a1 1 0 01.68-.95L9 3.5m0 16.5l6-2.5m-6 2.5V3.5m6 14l5.4 1.8a1 1 0 001.3-.95V3.6a1 1 0 00-.68-.95L15 1.5m0 16v-16m0 0L9 3.5',
+  assignments:
+    'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
   stewardship: 'M9 12l2 2 4-4m-6 8a9 9 0 110-18 9 9 0 010 18z',
   reference:
     'M4 6h16M4 12h16M4 18h10M19 16l2 2-2 2',
@@ -56,6 +65,9 @@ const NAV: Array<{ to: string; label: string; icon: IconName; end?: boolean }> =
     { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
     { to: '/customers', label: 'Customers', icon: 'customers' },
     { to: '/products', label: 'Products', icon: 'products' },
+    { to: '/employees', label: 'Employees', icon: 'employees' },
+    { to: '/territories', label: 'Territories', icon: 'territories' },
+    { to: '/assignments', label: 'Assignments', icon: 'assignments' },
     { to: '/stewardship', label: 'Stewardship', icon: 'stewardship' },
     { to: '/reference', label: 'Reference Data', icon: 'reference' },
     { to: '/audit', label: 'Audit Log', icon: 'audit' },
