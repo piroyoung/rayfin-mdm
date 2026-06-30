@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/AuthContext';
 import { ToastProvider } from '@/hooks/useToast';
 import { DashboardPage } from '@/pages/DashboardPage';
+import { GuidePage } from '@/pages/GuidePage';
 import { CustomersPage } from '@/pages/CustomersPage';
 import { ProductsPage } from '@/pages/ProductsPage';
 import { StewardshipPage } from '@/pages/StewardshipPage';
@@ -56,6 +57,7 @@ function App() {
             }
           >
             <Route index element={<DashboardPage />} />
+            <Route path="/guide" element={<GuidePage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/stewardship" element={<StewardshipPage />} />

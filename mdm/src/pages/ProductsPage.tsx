@@ -39,6 +39,7 @@ import {
   QualityBadge,
   Select,
   Spinner,
+  Tooltip,
 } from '@/components/ui';
 
 const EMPTY: ProductInput = {
@@ -308,15 +309,17 @@ export function ProductsPage() {
         title="Products"
         subtitle="Product master records sharing the same stewardship and quality machinery."
         actions={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditing(null);
-              setCreating(true);
-            }}
-          >
-            + New product
-          </Button>
+          <Tooltip label="新しい製品マスターレコードを作成します" side="bottom">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditing(null);
+                setCreating(true);
+              }}
+            >
+              + New product
+            </Button>
+          </Tooltip>
         }
       />
 
@@ -449,54 +452,62 @@ export function ProductsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         {p.status !== 'merged' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setCreating(false);
-                              setEditing(p);
-                            }}
-                          >
-                            Edit
-                          </Button>
+                          <Tooltip label="この製品情報を編集します">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setCreating(false);
+                                setEditing(p);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          </Tooltip>
                         )}
                         {(p.status === 'draft' || p.status === 'rejected') && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            loading={busyId === p.id}
-                            onClick={() => submitForApproval(p)}
-                          >
-                            Submit
-                          </Button>
+                          <Tooltip label="この製品レコードを承認に提出します">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              loading={busyId === p.id}
+                              onClick={() => submitForApproval(p)}
+                            >
+                              Submit
+                            </Button>
+                          </Tooltip>
                         )}
                         {p.status === 'approved' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            loading={busyId === p.id}
-                            onClick={() =>
-                              runAction(
-                                p.id,
-                                () => setProductStatus(p, 'archived'),
-                                'Product archived.'
-                              )
-                            }
-                          >
-                            Archive
-                          </Button>
+                          <Tooltip label="この製品レコードをアーカイブ（保管）します">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              loading={busyId === p.id}
+                              onClick={() =>
+                                runAction(
+                                  p.id,
+                                  () => setProductStatus(p, 'archived'),
+                                  'Product archived.'
+                                )
+                              }
+                            >
+                              Archive
+                            </Button>
+                          </Tooltip>
                         )}
                         {isActiveStatus(p.status) &&
                           p.status !== 'approved' &&
                           p.status !== 'pending_approval' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-red-600 hover:bg-red-50"
-                              onClick={() => setToDelete(p)}
-                            >
-                              Delete
-                            </Button>
+                            <Tooltip label="この製品レコードを完全に削除します（取り消せません）">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => setToDelete(p)}
+                              >
+                                Delete
+                              </Button>
+                            </Tooltip>
                           )}
                       </div>
                     </td>
@@ -599,20 +610,25 @@ function DuplicateGroupCard({
         ))}
       </div>
       <div className="mt-2 flex justify-end">
-        <Button
-          size="sm"
-          variant="primary"
-          loading={busy}
-          onClick={() => {
-            const winner = records.find((r) => r.id === winnerId)!;
-            onMerge(
-              winner,
-              records.filter((r) => r.id !== winnerId)
-            );
-          }}
+        <Tooltip
+          label="選択したレコードを正として残し、残りを 1 件に統合（名寄せ）します"
+          side="top"
         >
-          Keep selected &amp; merge rest
-        </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            loading={busy}
+            onClick={() => {
+              const winner = records.find((r) => r.id === winnerId)!;
+              onMerge(
+                winner,
+                records.filter((r) => r.id !== winnerId)
+              );
+            }}
+          >
+            Keep selected &amp; merge rest
+          </Button>
+        </Tooltip>
       </div>
     </div>
   );
