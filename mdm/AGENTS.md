@@ -3,6 +3,8 @@
 This project ships Rayfin agent context.
 Load `.agents/skills/rayfin/SKILL.md` and the `rayfin` MCP server in `.mcp.json` before writing Rayfin code.
 
+For React app-code work (routes, pages, components, view-state hooks, the `src/services` data layer, Tailwind/`ui.tsx`, charts, refactors, and Vitest verification), also load `.agents/skills/react-router-app-architecture/SKILL.md`. That skill defers to the `rayfin` skill wherever they overlap (entities/schema, the Rayfin client and data API, decorators, auth/roles, and deployment), so follow `rayfin` first on those topics.
+
 Rayfin docs are version-locked to the packages installed in this project.
 Prefer the MCP tools `search_docs`, `get_doc`, `list_docs`, and `discover_packages` for examples, API details, and troubleshooting.
 If MCP is unavailable, run `rayfin docs ...` from the project root so the CLI reads this project's `node_modules`.
