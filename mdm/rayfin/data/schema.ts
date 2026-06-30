@@ -1,8 +1,16 @@
+import type { AccountEmployeeAssignment } from './AccountEmployeeAssignment.js';
+import type { AccountTerritoryAssignment } from './AccountTerritoryAssignment.js';
 import type { AuditEvent } from './AuditEvent.js';
 import type { ChangeRequest } from './ChangeRequest.js';
 import type { Customer } from './Customer.js';
+import type { DataQualityIssue } from './DataQualityIssue.js';
+import type { Employee } from './Employee.js';
+import type { FiscalYear } from './FiscalYear.js';
 import type { Product } from './Product.js';
 import type { ReferenceValue } from './ReferenceValue.js';
+import type { RoleType } from './RoleType.js';
+import type { SourceXref } from './SourceXref.js';
+import type { Territory } from './Territory.js';
 
 /**
  * Binds entity names to their classes so `RayfinClient` exposes typed
@@ -14,4 +22,13 @@ export type MdmSchema = {
   ChangeRequest: ChangeRequest;
   AuditEvent: AuditEvent;
   ReferenceValue: ReferenceValue;
+  // Territory-assignment MDM domain
+  FiscalYear: FiscalYear;
+  RoleType: RoleType;
+  Employee: Employee;
+  Territory: Territory;
+  AccountTerritoryAssignment: AccountTerritoryAssignment;
+  AccountEmployeeAssignment: AccountEmployeeAssignment;
+  SourceXref: SourceXref;
+  DataQualityIssue: DataQualityIssue;
 };

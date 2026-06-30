@@ -11,8 +11,26 @@ import type { ChangeRequest } from '../../rayfin/data/ChangeRequest';
 import type { Customer } from '../../rayfin/data/Customer';
 import type { Product } from '../../rayfin/data/Product';
 import type { ReferenceValue } from '../../rayfin/data/ReferenceValue';
+import type { FiscalYear } from '../../rayfin/data/FiscalYear';
+import type { RoleType } from '../../rayfin/data/RoleType';
+import type { Employee } from '../../rayfin/data/Employee';
+import type { Territory } from '../../rayfin/data/Territory';
+import type { AccountTerritoryAssignment } from '../../rayfin/data/AccountTerritoryAssignment';
+import type { AccountEmployeeAssignment } from '../../rayfin/data/AccountEmployeeAssignment';
+import type { SourceXref } from '../../rayfin/data/SourceXref';
+import type { DataQualityIssue } from '../../rayfin/data/DataQualityIssue';
 
 export type { AuditEvent, ChangeRequest, Customer, Product, ReferenceValue };
+export type {
+  FiscalYear,
+  RoleType,
+  Employee,
+  Territory,
+  AccountTerritoryAssignment,
+  AccountEmployeeAssignment,
+  SourceXref,
+  DataQualityIssue,
+};
 
 /** Lifecycle shared by every master record (Customer + Product). */
 export type RecordStatus = Customer['status'];
@@ -23,6 +41,11 @@ export type ChangeType = ChangeRequest['changeType'];
 export type ChangeStatus = ChangeRequest['status'];
 export type AuditDomain = AuditEvent['domain'];
 export type AuditAction = AuditEvent['action'];
+
+// ── Territory-assignment MDM enums (derived from the entity classes) ──
+export type AssignmentStatus = AccountEmployeeAssignment['assignmentStatus'];
+export type IssueSeverity = DataQualityIssue['severity'];
+export type ResolutionStatus = DataQualityIssue['resolutionStatus'];
 
 export type BadgeTone =
   | 'gray'
@@ -98,6 +121,48 @@ export const MASTER_DOMAIN_META: Record<MasterDomain, Labelled> = {
   customer: { label: 'Customer' },
   product: { label: 'Product' },
 };
+
+/** Assignment lifecycle: draft → submitted → approved → active → retired. */
+export const ASSIGNMENT_STATUS_META: Record<AssignmentStatus, Toned> = {
+  draft: { label: 'Draft', tone: 'gray' },
+  submitted: { label: 'Submitted', tone: 'amber' },
+  approved: { label: 'Approved', tone: 'blue' },
+  active: { label: 'Active', tone: 'green' },
+  retired: { label: 'Retired', tone: 'slate' },
+};
+
+export const SEVERITY_META: Record<IssueSeverity, Toned> = {
+  low: { label: 'Low', tone: 'gray' },
+  medium: { label: 'Medium', tone: 'amber' },
+  high: { label: 'High', tone: 'red' },
+  critical: { label: 'Critical', tone: 'red' },
+};
+
+export const RESOLUTION_STATUS_META: Record<ResolutionStatus, Toned> = {
+  open: { label: 'Open', tone: 'amber' },
+  in_progress: { label: 'In progress', tone: 'blue' },
+  resolved: { label: 'Resolved', tone: 'green' },
+  dismissed: { label: 'Dismissed', tone: 'slate' },
+};
+
+/** Known data-quality rule codes (open set — unknown codes fall back via humanize). */
+export const ISSUE_TYPE_META: Record<string, Labelled> = {
+  MISSING_ACCOUNT_ID: { label: 'Missing account ID' },
+  DUPLICATE_ACCOUNT: { label: 'Duplicate account candidate' },
+  UNKNOWN_EMPLOYEE: { label: 'Unknown employee' },
+  INACTIVE_EMPLOYEE_ASSIGNED: { label: 'Inactive employee assigned' },
+  INVALID_TERRITORY: { label: 'Invalid territory' },
+  MULTIPLE_PRIMARY_OWNER: { label: 'Multiple primary owners' },
+  MISSING_PRIMARY_OWNER: { label: 'Missing primary owner' },
+  INVALID_REFERENCE_VALUE: { label: 'Invalid reference value' },
+  FY_DATE_MISMATCH: { label: 'Fiscal-year date mismatch' },
+  PARENT_CYCLE: { label: 'Parent hierarchy cycle' },
+  ALIAS_AMBIGUOUS: { label: 'Ambiguous alias' },
+};
+
+/** `assignmentStatus` values that are safe to publish downstream. */
+export const PUBLISHABLE_ASSIGNMENT_STATUSES: ReadonlySet<AssignmentStatus> =
+  new Set<AssignmentStatus>(['approved', 'active']);
 
 /** Title-case an unknown enum token for a display fallback (`status_change` → `Status change`). */
 export function humanizeToken(value: string | null | undefined): string {
