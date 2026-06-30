@@ -34,7 +34,6 @@ import {
 } from '@/components/listing';
 
 const EMPTY: RoleInput = {
-  code: '',
   name: '',
   isAccountAssignable: true,
   isTerritoryAssignable: false,
@@ -42,14 +41,11 @@ const EMPTY: RoleInput = {
 
 function snapshot(r: Role): RoleInput {
   return {
-    code: r.code,
     name: r.name,
-    category: r.category,
     description: r.description,
     orgUnit: r.orgUnit,
     solutionArea: r.solutionArea,
     subArea: r.subArea,
-    roleFamily: r.roleFamily,
     isAccountAssignable: r.isAccountAssignable,
     isTerritoryAssignable: r.isTerritoryAssignable,
     sortOrder: r.sortOrder,
@@ -71,8 +67,7 @@ function RoleForm({
   const [form, setForm] = useState<RoleInput>(initial);
   const set = (patch: Partial<RoleInput>) =>
     setForm((f) => ({ ...f, ...patch }));
-  const valid =
-    (form.code ?? '').trim() !== '' && (form.name ?? '').trim() !== '';
+  const valid = (form.name ?? '').trim() !== '';
 
   return (
     <form
@@ -82,32 +77,12 @@ function RoleForm({
       }}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Code" required hint="Stable business key, e.g. AE, CSAM">
-          <Input
-            value={form.code}
-            onChange={(e) => set({ code: e.target.value.toUpperCase() })}
-            placeholder="AE"
-            required
-          />
-        </Field>
         <Field label="Name" required>
           <Input
             value={form.name}
             onChange={(e) => set({ name: e.target.value })}
             placeholder="Account Executive"
             required
-          />
-        </Field>
-        <Field label="Category" hint="Sales, Technical, Specialist…">
-          <Input
-            value={form.category ?? ''}
-            onChange={(e) => set({ category: e.target.value || undefined })}
-          />
-        </Field>
-        <Field label="Role family">
-          <Input
-            value={form.roleFamily ?? ''}
-            onChange={(e) => set({ roleFamily: e.target.value || undefined })}
           />
         </Field>
         <Field label="Org unit" hint="STU, CSU, GPS…">
@@ -204,7 +179,7 @@ export function RolesPage() {
     return roles.filter((r) => {
       if (!matchesActive(activeFilter, r.isActive)) return false;
       if (!q) return true;
-      return [r.code, r.name, r.category, r.roleFamily, r.solutionArea]
+      return [r.name, r.solutionArea, r.orgUnit, r.subArea]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q));
     });
@@ -282,7 +257,6 @@ export function RolesPage() {
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
                   <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Family</th>
                   <th className="px-4 py-3">Assignable</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Created</th>
@@ -293,18 +267,7 @@ export function RolesPage() {
                 {filtered.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50/60">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">
-                        {r.name}
-                        <span className="ml-1 text-xs text-gray-400">
-                          {r.code}
-                        </span>
-                      </p>
-                      <p className="truncate text-xs text-gray-500">
-                        {r.category ?? '—'}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {r.roleFamily ?? '—'}
+                      <p className="font-medium text-gray-900">{r.name}</p>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
@@ -340,9 +303,7 @@ export function RolesPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() =>
-                              form.startDuplicate({ ...snapshot(r), code: '' })
-                            }
+                            onClick={() => form.startDuplicate(snapshot(r))}
                           >
                             Copy
                           </Button>
@@ -376,7 +337,7 @@ export function RolesPage() {
         onClose={form.close}
         title={
           form.editing
-            ? `Edit ${form.editing.code}`
+            ? `Edit ${form.editing.name}`
             : form.mode === 'duplicate'
               ? 'New role (copy)'
               : 'New role'
