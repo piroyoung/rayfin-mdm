@@ -17,8 +17,24 @@ function reference() {
   return getRayfinClient().data.ReferenceValue;
 }
 
+/**
+ * Explicit field projection — the Rayfin/DAB client returns only the primary key
+ * unless fields are selected. Keep in sync with rayfin/data/ReferenceValue.ts.
+ */
+const REFERENCE_FIELDS = [
+  'id',
+  'setName',
+  'code',
+  'label',
+  'parentId',
+  'sortOrder',
+  'isActive',
+  'createdBy',
+  'createdAt',
+] as const;
+
 export async function listReference(): Promise<ReferenceValue[]> {
-  const rows = await reference().findMany();
+  const rows = await reference().select(REFERENCE_FIELDS).execute();
   return [...rows].sort(
     (a, b) =>
       a.setName.localeCompare(b.setName) ||

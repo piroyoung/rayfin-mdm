@@ -78,7 +78,7 @@ function ProductForm({
     setForm((f) => ({ ...f, ...patch }));
 
   const quality = scoreProduct(form);
-  const valid = form.sku.trim() !== '' && form.name.trim() !== '';
+  const valid = (form.sku ?? '').trim() !== '' && (form.name ?? '').trim() !== '';
 
   return (
     <form

@@ -55,9 +55,9 @@ function ReferenceForm({
     setForm((f) => ({ ...f, ...patch }));
 
   const valid =
-    form.setName.trim() !== '' &&
-    form.code.trim() !== '' &&
-    form.label.trim() !== '';
+    (form.setName ?? '').trim() !== '' &&
+    (form.code ?? '').trim() !== '' &&
+    (form.label ?? '').trim() !== '';
 
   return (
     <form

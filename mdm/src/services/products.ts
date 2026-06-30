@@ -25,19 +25,46 @@ function products() {
   return getRayfinClient().data.Product;
 }
 
+/**
+ * Explicit field projection. The Rayfin/DAB client only returns the primary key
+ * unless fields are selected, so every read must enumerate the columns it needs.
+ * Keep in sync with rayfin/data/Product.ts.
+ */
+const PRODUCT_FIELDS = [
+  'id',
+  'sku',
+  'name',
+  'description',
+  'category',
+  'brand',
+  'gtin',
+  'unitOfMeasure',
+  'listPrice',
+  'currency',
+  'status',
+  'isGolden',
+  'qualityScore',
+  'sourceSystem',
+  'mergedIntoId',
+  'createdBy',
+  'updatedBy',
+  'createdAt',
+  'updatedAt',
+] as const;
+
 function label(record: { sku: string; name: string }): string {
   return `${record.sku} — ${record.name}`;
 }
 
 export async function listProducts(): Promise<Product[]> {
-  const rows = await products().findMany();
+  const rows = await products().select(PRODUCT_FIELDS).execute();
   return [...rows].sort(
     (a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)
   );
 }
 
 export function getProduct(id: string): Promise<Product | null> {
-  return products().findById(id);
+  return products().select(PRODUCT_FIELDS).where({ id: { eq: id } }).findFirst();
 }
 
 export async function createProduct(input: ProductInput): Promise<Product> {

@@ -16,6 +16,22 @@ function audit() {
   return getRayfinClient().data.AuditEvent;
 }
 
+/**
+ * Explicit field projection — the Rayfin/DAB client returns only the primary key
+ * unless fields are selected. Keep in sync with rayfin/data/AuditEvent.ts.
+ */
+const AUDIT_FIELDS = [
+  'id',
+  'domain',
+  'action',
+  'recordId',
+  'recordLabel',
+  'summary',
+  'details',
+  'actor',
+  'createdAt',
+] as const;
+
 /** Best-effort: a failed audit write must never block the primary mutation. */
 export async function logAudit(input: AuditInput): Promise<void> {
   try {
@@ -41,7 +57,7 @@ export async function logAudit(input: AuditInput): Promise<void> {
 }
 
 export async function listAudit(): Promise<AuditEvent[]> {
-  const rows = await audit().findMany();
+  const rows = await audit().select(AUDIT_FIELDS).execute();
   return [...rows].sort(
     (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)
   );
