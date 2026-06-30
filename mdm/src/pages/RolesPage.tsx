@@ -8,23 +8,30 @@ import {
   type RoleInput,
 } from '@/services/roles';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useCrudForm } from '@/hooks/useCrudForm';
 import { useToast } from '@/hooks/useToast';
 import { fmtRelative } from '@/lib/format';
+import { matchesActive, type ActiveFilterValue } from '@/lib/listing';
 import type { Role } from '@/domain/types';
 import {
   Badge,
   Button,
-  Card,
-  EmptyState,
   Field,
   Input,
   Modal,
   PageHeader,
   Select,
-  Spinner,
   Textarea,
   Tooltip,
 } from '@/components/ui';
+import {
+  ActiveFilter,
+  FormActions,
+  ListCard,
+  ListToolbar,
+  RowActions,
+  StatusBadge,
+} from '@/components/listing';
 
 const EMPTY: RoleInput = {
   code: '',
@@ -175,14 +182,7 @@ function RoleForm({
         </div>
       </div>
 
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" type="submit" loading={saving} disabled={!valid}>
-          Save
-        </Button>
-      </div>
+      <FormActions onCancel={onCancel} saving={saving} disabled={!valid} />
     </form>
   );
 }
@@ -192,12 +192,8 @@ export function RolesPage() {
   const { data, loading, error, reload } = useAsyncData(listRoles);
 
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>(
-    'all'
-  );
-  const [editing, setEditing] = useState<Role | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [seed, setSeed] = useState<RoleInput | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilterValue>('all');
+  const form = useCrudForm<Role, RoleInput>();
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -206,8 +202,7 @@ export function RolesPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return roles.filter((r) => {
-      if (activeFilter === 'active' && !r.isActive) return false;
-      if (activeFilter === 'inactive' && r.isActive) return false;
+      if (!matchesActive(activeFilter, r.isActive)) return false;
       if (!q) return true;
       return [r.code, r.name, r.category, r.roleFamily, r.solutionArea]
         .filter(Boolean)
@@ -218,16 +213,14 @@ export function RolesPage() {
   async function handleSave(input: RoleInput) {
     setSaving(true);
     try {
-      if (editing) {
-        await updateRole(editing.id, input);
+      if (form.editing) {
+        await updateRole(form.editing.id, input);
         toast('Role updated.', 'success');
       } else {
         await createRole(input);
         toast('Role created.', 'success');
       }
-      setEditing(null);
-      setCreating(false);
-      setSeed(null);
+      form.close();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed.', 'error');
@@ -256,60 +249,36 @@ export function RolesPage() {
         subtitle="The role catalogue. Roles are data, not columns — a new FY role is a new row."
         actions={
           <Tooltip label="新しいロールを作成します" side="bottom">
-            <Button
-              variant="primary"
-              onClick={() => {
-                setEditing(null);
-                setSeed(null);
-                setCreating(true);
-              }}
-            >
+            <Button variant="primary" onClick={() => form.startCreate()}>
               + New role
             </Button>
           </Tooltip>
         }
       />
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 p-4">
-          <div className="relative min-w-0 flex-1">
-            <Input
-              placeholder="Search code, name, family…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Select
-            className="w-44"
-            value={activeFilter}
-            onChange={(e) =>
-              setActiveFilter(e.target.value as 'all' | 'active' | 'inactive')
-            }
+      <ListCard
+        toolbar={
+          <ListToolbar
+            search={search}
+            onSearch={setSearch}
+            placeholder="Search code, name, family…"
           >
-            <option value="all">All</option>
-            <option value="active">Active only</option>
-            <option value="inactive">Inactive only</option>
-          </Select>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" label="Loading roles…" />
-          </div>
-        ) : error ? (
-          <EmptyState title="Couldn't load roles" description={error} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            title="No roles found"
-            description={
-              roles.length === 0
-                ? 'Create your first role.'
-                : 'Try adjusting your search or filters.'
-            }
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <ActiveFilter value={activeFilter} onChange={setActiveFilter} />
+          </ListToolbar>
+        }
+        loading={loading}
+        error={error}
+        isEmpty={filtered.length === 0}
+        loadingLabel="Loading roles…"
+        errorTitle="Couldn't load roles"
+        emptyTitle="No roles found"
+        emptyDescription={
+          roles.length === 0
+            ? 'Create your first role.'
+            : 'Try adjusting your search or filters.'
+        }
+      >
+        <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
                   <th className="px-4 py-3">Role</th>
@@ -351,24 +320,18 @@ export function RolesPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={r.isActive ? 'green' : 'slate'}>
-                        {r.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <StatusBadge active={r.isActive} />
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {fmtRelative(r.createdAt)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                      <RowActions>
                         <Tooltip label="このロールを編集します">
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setSeed(null);
-                              setCreating(false);
-                              setEditing(r);
-                            }}
+                            onClick={() => form.startEdit(r)}
                           >
                             Edit
                           </Button>
@@ -377,11 +340,9 @@ export function RolesPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setEditing(null);
-                              setSeed({ ...snapshot(r), code: '' });
-                              setCreating(true);
-                            }}
+                            onClick={() =>
+                              form.startDuplicate({ ...snapshot(r), code: '' })
+                            }
                           >
                             Copy
                           </Button>
@@ -402,36 +363,30 @@ export function RolesPage() {
                             {r.isActive ? 'Deactivate' : 'Activate'}
                           </Button>
                         </Tooltip>
-                      </div>
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        </table>
+      </ListCard>
 
       <Modal
-        open={creating || editing !== null}
-        onClose={() => {
-          setCreating(false);
-          setEditing(null);
-          setSeed(null);
-        }}
+        open={form.open}
+        onClose={form.close}
         title={
-          editing ? `Edit ${editing.code}` : seed ? 'New role (copy)' : 'New role'
+          form.editing
+            ? `Edit ${form.editing.code}`
+            : form.mode === 'duplicate'
+              ? 'New role (copy)'
+              : 'New role'
         }
         size="lg"
       >
         <RoleForm
-          initial={editing ? snapshot(editing) : (seed ?? EMPTY)}
+          initial={form.editing ? snapshot(form.editing) : (form.seed ?? EMPTY)}
           saving={saving}
-          onCancel={() => {
-            setCreating(false);
-            setEditing(null);
-            setSeed(null);
-          }}
+          onCancel={form.close}
           onSubmit={handleSave}
         />
       </Modal>

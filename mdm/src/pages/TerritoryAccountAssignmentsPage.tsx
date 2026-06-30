@@ -12,7 +12,9 @@ import {
   type TerritoryAssignmentInput,
 } from '@/services/assignments';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useCrudForm } from '@/hooks/useCrudForm';
 import { useToast } from '@/hooks/useToast';
+import { lookupFn } from '@/lib/listing';
 import { workflowActions } from '@/domain/assignmentWorkflow';
 import {
   ASSIGNMENT_STATUS_META,
@@ -25,17 +27,15 @@ import {
 import {
   Badge,
   Button,
-  Card,
   ConfirmDialog,
-  EmptyState,
   Field,
   Input,
   Modal,
   PageHeader,
   Select,
-  Spinner,
   Tooltip,
 } from '@/components/ui';
+import { FormActions, ListCard, RowActions } from '@/components/listing';
 
 interface PageData {
   rows: TerritoryAccountAssignment[];
@@ -154,14 +154,12 @@ function CreateForm({
         </Field>
       </div>
 
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" type="submit" loading={saving} disabled={!valid}>
-          Create
-        </Button>
-      </div>
+      <FormActions
+        onCancel={onCancel}
+        saving={saving}
+        disabled={!valid}
+        submitLabel="Create"
+      />
     </form>
   );
 }
@@ -175,29 +173,40 @@ export function TerritoryAccountAssignmentsPage() {
   const territories = useMemo(() => data?.territories ?? [], [data]);
   const fiscalYears = useMemo(() => data?.fiscalYears ?? [], [data]);
 
-  const [creating, setCreating] = useState(false);
-  const [seed, setSeed] = useState<TerritoryAssignmentInput | null>(null);
+  const form = useCrudForm<
+    TerritoryAccountAssignment,
+    TerritoryAssignmentInput
+  >();
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<TerritoryAccountAssignment | null>(
     null
   );
 
-  const accName = useMemo(() => {
-    const map = new Map(accounts.map((a) => [a.id, a]));
-    return (id: string) => {
-      const a = map.get(id);
-      return a ? accountName(a) : id;
-    };
-  }, [accounts]);
-  const terrCode = useMemo(() => {
-    const map = new Map(territories.map((t) => [t.id, t.territoryCode]));
-    return (id: string) => map.get(id) ?? '—';
-  }, [territories]);
-  const fyCode = useMemo(() => {
-    const map = new Map(fiscalYears.map((fy) => [fy.id, fy.code]));
-    return (id: string) => map.get(id) ?? '—';
-  }, [fiscalYears]);
+  const accName = useMemo(
+    () => lookupFn(accounts, (a) => a.id, (a) => accountName(a)),
+    [accounts]
+  );
+  const terrCode = useMemo(
+    () =>
+      lookupFn(
+        territories,
+        (t) => t.id,
+        (t) => t.territoryCode,
+        () => '—'
+      ),
+    [territories]
+  );
+  const fyCode = useMemo(
+    () =>
+      lookupFn(
+        fiscalYears,
+        (fy) => fy.id,
+        (fy) => fy.code,
+        () => '—'
+      ),
+    [fiscalYears]
+  );
 
   const sorted = useMemo(
     () =>
@@ -212,8 +221,7 @@ export function TerritoryAccountAssignmentsPage() {
     try {
       await createTerritoryAssignment(input);
       toast('Placement created.', 'success');
-      setCreating(false);
-      setSeed(null);
+      form.close();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Create failed.', 'error');
@@ -262,31 +270,23 @@ export function TerritoryAccountAssignmentsPage() {
         subtitle="Which territory an account sits in for a fiscal year. One row per account / FY; history is preserved."
         actions={
           <Tooltip label="新しいテリトリ配置を作成します" side="bottom">
-            <Button variant="primary" onClick={() => {
-              setSeed(null);
-              setCreating(true);
-            }}>
+            <Button variant="primary" onClick={() => form.startCreate()}>
               + New placement
             </Button>
           </Tooltip>
         }
       />
 
-      <Card>
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" label="Loading placements…" />
-          </div>
-        ) : error ? (
-          <EmptyState title="Couldn't load placements" description={error} />
-        ) : sorted.length === 0 ? (
-          <EmptyState
-            title="No placements yet"
-            description="Place an account in a territory to get started."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+      <ListCard
+        loading={loading}
+        error={error}
+        isEmpty={sorted.length === 0}
+        loadingLabel="Loading placements…"
+        errorTitle="Couldn't load placements"
+        emptyTitle="No placements yet"
+        emptyDescription="Place an account in a territory to get started."
+      >
+        <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
                   <th className="px-4 py-3">Account</th>
@@ -326,7 +326,7 @@ export function TerritoryAccountAssignmentsPage() {
                         <Badge tone={meta.tone}>{meta.label}</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                        <RowActions>
                           {workflowActions(row.assignmentStatus).map((a) => (
                             <Button
                               key={a.to}
@@ -349,10 +349,7 @@ export function TerritoryAccountAssignmentsPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                setSeed(snapshot(row));
-                                setCreating(true);
-                              }}
+                              onClick={() => form.startDuplicate(snapshot(row))}
                             >
                               Copy
                             </Button>
@@ -366,36 +363,32 @@ export function TerritoryAccountAssignmentsPage() {
                               Delete
                             </Button>
                           </Tooltip>
-                        </div>
+                        </RowActions>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        </table>
+      </ListCard>
 
       <Modal
-        open={creating}
-        onClose={() => {
-          setCreating(false);
-          setSeed(null);
-        }}
-        title={seed ? 'Copy placement' : 'New territory placement'}
+        open={form.open}
+        onClose={form.close}
+        title={
+          form.mode === 'duplicate'
+            ? 'Copy placement'
+            : 'New territory placement'
+        }
         size="lg"
       >
         <CreateForm
-          initial={seed ?? EMPTY}
+          initial={form.seed ?? EMPTY}
           accounts={accounts}
           territories={territories}
           fiscalYears={fiscalYears}
           saving={saving}
-          onCancel={() => {
-            setCreating(false);
-            setSeed(null);
-          }}
+          onCancel={form.close}
           onSubmit={handleCreate}
         />
       </Modal>

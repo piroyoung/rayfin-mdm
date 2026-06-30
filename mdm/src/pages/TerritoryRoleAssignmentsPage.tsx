@@ -13,7 +13,9 @@ import {
   type TerritoryRoleAssignmentInput,
 } from '@/services/territoryRoleAssignments';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useCrudForm } from '@/hooks/useCrudForm';
 import { useToast } from '@/hooks/useToast';
+import { lookupFn } from '@/lib/listing';
 import { workflowActions } from '@/domain/assignmentWorkflow';
 import {
   ASSIGNMENT_STATUS_META,
@@ -27,16 +29,14 @@ import {
 import {
   Badge,
   Button,
-  Card,
   ConfirmDialog,
-  EmptyState,
   Field,
   Modal,
   PageHeader,
   Select,
-  Spinner,
   Tooltip,
 } from '@/components/ui';
+import { FormActions, ListCard, RowActions } from '@/components/listing';
 
 interface PageData {
   rows: TerritoryRoleAssignment[];
@@ -172,14 +172,12 @@ function CreateForm({
         page to swap a seat holder with history preserved.
       </p>
 
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" type="submit" loading={saving} disabled={!valid}>
-          Create
-        </Button>
-      </div>
+      <FormActions
+        onCancel={onCancel}
+        saving={saving}
+        disabled={!valid}
+        submitLabel="Create"
+      />
     </form>
   );
 }
@@ -194,32 +192,52 @@ export function TerritoryRoleAssignmentsPage() {
   const fiscalYears = useMemo(() => data?.fiscalYears ?? [], [data]);
   const roles = useMemo(() => data?.roles ?? [], [data]);
 
-  const [creating, setCreating] = useState(false);
-  const [seed, setSeed] = useState<TerritoryRoleAssignmentInput | null>(null);
+  const form = useCrudForm<
+    TerritoryRoleAssignment,
+    TerritoryRoleAssignmentInput
+  >();
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<TerritoryRoleAssignment | null>(null);
 
-  const terrCode = useMemo(() => {
-    const map = new Map(territories.map((t) => [t.id, t.territoryCode]));
-    return (id: string) => map.get(id) ?? '—';
-  }, [territories]);
-  const empName = useMemo(() => {
-    const map = new Map(employees.map((e) => [e.id, e]));
-    return (id: string) => {
-      const e = map.get(id);
-      if (!e) return id;
-      return e.alias ? `${e.displayName} (${e.alias})` : e.displayName;
-    };
-  }, [employees]);
-  const fyCode = useMemo(() => {
-    const map = new Map(fiscalYears.map((fy) => [fy.id, fy.code]));
-    return (id: string) => map.get(id) ?? '—';
-  }, [fiscalYears]);
-  const roleName = useMemo(() => {
-    const map = new Map(roles.map((r) => [r.code, r.name]));
-    return (code: string) => map.get(code) ?? code;
-  }, [roles]);
+  const terrCode = useMemo(
+    () =>
+      lookupFn(
+        territories,
+        (t) => t.id,
+        (t) => t.territoryCode,
+        () => '—'
+      ),
+    [territories]
+  );
+  const empName = useMemo(
+    () =>
+      lookupFn(
+        employees,
+        (e) => e.id,
+        (e) => (e.alias ? `${e.displayName} (${e.alias})` : e.displayName)
+      ),
+    [employees]
+  );
+  const fyCode = useMemo(
+    () =>
+      lookupFn(
+        fiscalYears,
+        (fy) => fy.id,
+        (fy) => fy.code,
+        () => '—'
+      ),
+    [fiscalYears]
+  );
+  const roleName = useMemo(
+    () =>
+      lookupFn(
+        roles,
+        (r) => r.code,
+        (r) => r.name
+      ),
+    [roles]
+  );
 
   const sorted = useMemo(
     () =>
@@ -234,8 +252,7 @@ export function TerritoryRoleAssignmentsPage() {
     try {
       await createTerritoryRoleAssignment(input);
       toast('Seat created.', 'success');
-      setCreating(false);
-      setSeed(null);
+      form.close();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Create failed.', 'error');
@@ -284,31 +301,23 @@ export function TerritoryRoleAssignmentsPage() {
         subtitle="Who staffs each role seat in a territory, per fiscal year. One seat per territory / role / FY."
         actions={
           <Tooltip label="新しいロールシートを作成します" side="bottom">
-            <Button variant="primary" onClick={() => {
-              setSeed(null);
-              setCreating(true);
-            }}>
+            <Button variant="primary" onClick={() => form.startCreate()}>
               + New seat
             </Button>
           </Tooltip>
         }
       />
 
-      <Card>
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" label="Loading seats…" />
-          </div>
-        ) : error ? (
-          <EmptyState title="Couldn't load seats" description={error} />
-        ) : sorted.length === 0 ? (
-          <EmptyState
-            title="No seats yet"
-            description="Staff a role seat in a territory to get started."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+      <ListCard
+        loading={loading}
+        error={error}
+        isEmpty={sorted.length === 0}
+        loadingLabel="Loading seats…"
+        errorTitle="Couldn't load seats"
+        emptyTitle="No seats yet"
+        emptyDescription="Staff a role seat in a territory to get started."
+      >
+        <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
                   <th className="px-4 py-3">Territory</th>
@@ -353,7 +362,7 @@ export function TerritoryRoleAssignmentsPage() {
                         <Badge tone={meta.tone}>{meta.label}</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                        <RowActions>
                           {workflowActions(row.assignmentStatus).map((a) => (
                             <Button
                               key={a.to}
@@ -375,10 +384,7 @@ export function TerritoryRoleAssignmentsPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                setSeed(snapshot(row));
-                                setCreating(true);
-                              }}
+                              onClick={() => form.startDuplicate(snapshot(row))}
                             >
                               Copy
                             </Button>
@@ -392,37 +398,29 @@ export function TerritoryRoleAssignmentsPage() {
                               Vacate
                             </Button>
                           </Tooltip>
-                        </div>
+                        </RowActions>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        </table>
+      </ListCard>
 
       <Modal
-        open={creating}
-        onClose={() => {
-          setCreating(false);
-          setSeed(null);
-        }}
-        title={seed ? 'Copy role seat' : 'New role seat'}
+        open={form.open}
+        onClose={form.close}
+        title={form.mode === 'duplicate' ? 'Copy role seat' : 'New role seat'}
         size="lg"
       >
         <CreateForm
-          initial={seed ?? EMPTY}
+          initial={form.seed ?? EMPTY}
           territories={territories}
           employees={employees}
           fiscalYears={fiscalYears}
           roles={roles}
           saving={saving}
-          onCancel={() => {
-            setCreating(false);
-            setSeed(null);
-          }}
+          onCancel={form.close}
           onSubmit={handleCreate}
         />
       </Modal>
