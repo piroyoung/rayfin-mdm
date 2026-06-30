@@ -85,7 +85,7 @@ function CustomerForm({
 
   const quality = scoreCustomer(form);
   const valid =
-    form.customerCode.trim() !== '' && form.name.trim() !== '';
+    (form.customerCode ?? '').trim() !== '' && (form.name ?? '').trim() !== '';
 
   return (
     <form

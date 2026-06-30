@@ -7,8 +7,8 @@
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
-import { setCustomerStatus } from '@/services/customers';
-import { setProductStatus } from '@/services/products';
+import { getCustomer, setCustomerStatus } from '@/services/customers';
+import { getProduct, setProductStatus } from '@/services/products';
 import type {
   ChangeRequest,
   ChangeType,
@@ -30,8 +30,29 @@ function changeRequests() {
   return getRayfinClient().data.ChangeRequest;
 }
 
+/**
+ * Explicit field projection — the Rayfin/DAB client returns only the primary key
+ * unless fields are selected. Keep in sync with rayfin/data/ChangeRequest.ts.
+ */
+const CHANGE_REQUEST_FIELDS = [
+  'id',
+  'domain',
+  'changeType',
+  'recordId',
+  'recordLabel',
+  'payload',
+  'mergeTargetId',
+  'status',
+  'reason',
+  'reviewNote',
+  'requestedBy',
+  'reviewedBy',
+  'createdAt',
+  'decidedAt',
+] as const;
+
 export async function listChangeRequests(): Promise<ChangeRequest[]> {
-  const rows = await changeRequests().findMany();
+  const rows = await changeRequests().select(CHANGE_REQUEST_FIELDS).execute();
   return [...rows].sort(
     (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)
   );
@@ -77,12 +98,11 @@ async function moveTarget(
   status: 'approved' | 'rejected' | 'archived' | 'pending_approval',
   note?: string
 ): Promise<void> {
-  const client = getRayfinClient();
   if (domain === 'customer') {
-    const record = await client.data.Customer.findById(recordId);
+    const record = await getCustomer(recordId);
     if (record) await setCustomerStatus(record, status, note);
   } else {
-    const record = await client.data.Product.findById(recordId);
+    const record = await getProduct(recordId);
     if (record) await setProductStatus(record, status, note);
   }
 }

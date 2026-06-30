@@ -31,19 +31,53 @@ function customers() {
   return getRayfinClient().data.Customer;
 }
 
+/**
+ * Explicit field projection — the Rayfin/DAB client returns only the primary key
+ * unless fields are selected. Keep in sync with rayfin/data/Customer.ts.
+ */
+const CUSTOMER_FIELDS = [
+  'id',
+  'customerCode',
+  'name',
+  'legalName',
+  'email',
+  'phone',
+  'taxId',
+  'website',
+  'segment',
+  'industry',
+  'addressLine1',
+  'city',
+  'stateProvince',
+  'postalCode',
+  'countryCode',
+  'status',
+  'isGolden',
+  'qualityScore',
+  'sourceSystem',
+  'mergedIntoId',
+  'createdBy',
+  'updatedBy',
+  'createdAt',
+  'updatedAt',
+] as const;
+
 function label(record: { customerCode: string; name: string }): string {
   return `${record.customerCode} — ${record.name}`;
 }
 
 export async function listCustomers(): Promise<Customer[]> {
-  const rows = await customers().findMany();
+  const rows = await customers().select(CUSTOMER_FIELDS).execute();
   return [...rows].sort(
     (a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)
   );
 }
 
 export function getCustomer(id: string): Promise<Customer | null> {
-  return customers().findById(id);
+  return customers()
+    .select(CUSTOMER_FIELDS)
+    .where({ id: { eq: id } })
+    .findFirst();
 }
 
 export async function createCustomer(input: CustomerInput): Promise<Customer> {
