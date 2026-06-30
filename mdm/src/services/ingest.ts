@@ -5,18 +5,22 @@
  *
  *   previewIngest()  – read-only: parse + resolve against current masters and
  *                      return the canonical plan + data-quality issues.
- *   commitIngest()   – idempotent write: upsert accounts, create draft employee
- *                      assignments, register source cross-references, and raise
- *                      any new data-quality issues.
+ *   commitIngest()   – idempotent write: upsert accounts, place them in their
+ *                      territory, staff territory role seats, register source
+ *                      cross-references, and raise any new data-quality issues.
  */
 import { createAccount, listAccounts } from '@/services/accounts';
 import { listEmployees } from '@/services/employees';
 import { listTerritories } from '@/services/territories';
 import { listFiscalYears } from '@/services/fiscalYears';
 import {
-  createEmployeeAssignment,
-  listEmployeeAssignments,
+  createTerritoryAssignment,
+  listTerritoryAssignments,
 } from '@/services/assignments';
+import {
+  createTerritoryRoleAssignment,
+  listTerritoryRoleAssignments,
+} from '@/services/territoryRoleAssignments';
 import {
   createDataQualityIssues,
   listOpenDataQualityIssues,
@@ -51,6 +55,8 @@ export interface IngestPreview {
 
 export interface IngestSummary {
   accountsCreated: number;
+  placementsCreated: number;
+  placementsSkipped: number;
   assignmentsCreated: number;
   assignmentsSkipped: number;
   issuesRaised: number;
@@ -140,6 +146,8 @@ export async function commitIngest(
 
   const summary: IngestSummary = {
     accountsCreated: 0,
+    placementsCreated: 0,
+    placementsSkipped: 0,
     assignmentsCreated: 0,
     assignmentsSkipped: 0,
     issuesRaised: 0,
@@ -188,42 +196,77 @@ export async function commitIngest(
     return summary;
   }
 
-  // 2) Assignments — skip duplicates of an existing current row in the same scope.
+  // 2) Territory placements + role seats — skip duplicates already current.
   const territoryByCode = new Map(
     territories.map((t) => [normalizeTerritoryCode(t.territoryCode), t.id])
   );
-  const existing = await listEmployeeAssignments();
-  const existingScopes = new Set(
-    existing
-      .filter((a) => a.currentFlag)
-      .map((a) => `${a.accountId}|${a.employeeId}|${a.roleTypeCode}|${a.fiscalYearId}`)
-  );
 
-  for (const intent of plan.intents) {
-    const accountId = accountByKey.get(intent.accountKey);
-    if (!accountId) {
-      summary.assignmentsSkipped += 1;
+  // 2a) Place each account in its territory (account → territory bridge).
+  const existingPlacements = await listTerritoryAssignments();
+  const placementScopes = new Set(
+    existingPlacements
+      .filter((p) => p.currentFlag)
+      .map((p) => `${p.accountId}|${p.territoryId}|${p.fiscalYearId}`)
+  );
+  for (const account of staging.accounts) {
+    const accountId = accountByKey.get(account.accountKey);
+    if (!accountId || !account.territoryCode) continue;
+    const territoryId = territoryByCode.get(
+      normalizeTerritoryCode(account.territoryCode)
+    );
+    if (!territoryId) {
+      summary.placementsSkipped += 1;
       continue;
     }
-    const scope = `${accountId}|${intent.employeeId}|${intent.roleTypeCode}|${fiscalYear.id}`;
-    if (existingScopes.has(scope)) {
-      summary.assignmentsSkipped += 1;
+    const scope = `${accountId}|${territoryId}|${fiscalYear.id}`;
+    if (placementScopes.has(scope)) {
+      summary.placementsSkipped += 1;
       continue;
     }
-    await createEmployeeAssignment({
+    await createTerritoryAssignment({
       accountId,
+      territoryId,
+      fiscalYearId: fiscalYear.id,
+      assignmentStatus: 'draft',
+      sourceSystem: INGEST_SOURCE_SYSTEM,
+      sourceRecordId: `row:${account.sourceRow}`,
+    });
+    placementScopes.add(scope);
+    summary.placementsCreated += 1;
+  }
+
+  // 2b) Staff territory role seats from the resolved assignment intents. One
+  //     seat per territory/role/FY — the first intent wins; later duplicates
+  //     (and intents whose territory does not resolve) are skipped.
+  const existingSeats = await listTerritoryRoleAssignments();
+  const seatScopes = new Set(
+    existingSeats
+      .filter((s) => s.currentFlag)
+      .map((s) => `${s.territoryId}|${s.roleTypeCode}|${s.fiscalYearId}`)
+  );
+  for (const intent of plan.intents) {
+    const territoryId = intent.territoryCode
+      ? territoryByCode.get(normalizeTerritoryCode(intent.territoryCode))
+      : undefined;
+    if (!territoryId) {
+      summary.assignmentsSkipped += 1;
+      continue;
+    }
+    const scope = `${territoryId}|${intent.roleTypeCode}|${fiscalYear.id}`;
+    if (seatScopes.has(scope)) {
+      summary.assignmentsSkipped += 1;
+      continue;
+    }
+    await createTerritoryRoleAssignment({
+      territoryId,
       employeeId: intent.employeeId,
       fiscalYearId: fiscalYear.id,
       roleTypeCode: intent.roleTypeCode,
-      territoryId: intent.territoryCode
-        ? territoryByCode.get(normalizeTerritoryCode(intent.territoryCode))
-        : undefined,
-      isPrimary: intent.isPrimary,
       assignmentStatus: 'draft',
       sourceSystem: INGEST_SOURCE_SYSTEM,
       sourceRecordId: intent.sourceRecordId,
     });
-    existingScopes.add(scope);
+    seatScopes.add(scope);
     summary.assignmentsCreated += 1;
   }
 

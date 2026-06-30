@@ -1,31 +1,39 @@
-/** Role-type master service: CRUD for the assignment role catalogue. */
+/** Role master service: CRUD for the single role catalogue. */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
-import type { RoleType } from '@/domain/types';
+import type { Role } from '@/domain/types';
 
-export interface RoleTypeInput {
+export interface RoleInput {
   code: string;
   name: string;
   category?: string;
   description?: string;
+  orgUnit?: string;
+  solutionArea?: string;
+  subArea?: string;
+  roleFamily?: string;
   isAccountAssignable?: boolean;
   isTerritoryAssignable?: boolean;
   sortOrder?: number;
   isActive?: boolean;
 }
 
-function roleTypes() {
-  return getRayfinClient().data.RoleType;
+function roles() {
+  return getRayfinClient().data.Role;
 }
 
-/** Keep in sync with rayfin/data/RoleType.ts. */
-const ROLE_TYPE_FIELDS = [
+/** Keep in sync with rayfin/data/Role.ts. */
+const ROLE_FIELDS = [
   'id',
   'code',
   'name',
   'category',
   'description',
+  'orgUnit',
+  'solutionArea',
+  'subArea',
+  'roleFamily',
   'isAccountAssignable',
   'isTerritoryAssignable',
   'sortOrder',
@@ -34,33 +42,37 @@ const ROLE_TYPE_FIELDS = [
   'createdAt',
 ] as const;
 
-export async function listRoleTypes(): Promise<RoleType[]> {
-  const rows = await roleTypes().select(ROLE_TYPE_FIELDS).execute();
+export async function listRoles(): Promise<Role[]> {
+  const rows = await roles().select(ROLE_FIELDS).execute();
   return [...rows].sort(
     (a, b) =>
       (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.code.localeCompare(b.code)
   );
 }
 
-/** Active roles that can be attached to an account-employee assignment. */
-export async function listAccountAssignableRoles(): Promise<RoleType[]> {
-  const rows = await listRoleTypes();
+/** Active roles that can be attached to an account-level assignment. */
+export async function listAccountAssignableRoles(): Promise<Role[]> {
+  const rows = await listRoles();
   return rows.filter((r) => r.isActive && r.isAccountAssignable);
 }
 
-export function getRoleType(id: string): Promise<RoleType | null> {
-  return roleTypes()
-    .select(ROLE_TYPE_FIELDS)
+export function getRole(id: string): Promise<Role | null> {
+  return roles()
+    .select(ROLE_FIELDS)
     .where({ id: { eq: id } })
     .findFirst();
 }
 
-export async function createRoleType(input: RoleTypeInput): Promise<RoleType> {
-  const created = await roleTypes().create({
+export async function createRole(input: RoleInput): Promise<Role> {
+  const created = await roles().create({
     code: input.code,
     name: input.name,
     category: input.category,
     description: input.description,
+    orgUnit: input.orgUnit,
+    solutionArea: input.solutionArea,
+    subArea: input.subArea,
+    roleFamily: input.roleFamily,
     isAccountAssignable: input.isAccountAssignable ?? true,
     isTerritoryAssignable: input.isTerritoryAssignable ?? false,
     sortOrder: input.sortOrder,
@@ -69,26 +81,27 @@ export async function createRoleType(input: RoleTypeInput): Promise<RoleType> {
     createdAt: new Date(),
   });
   await logAudit({
-    domain: 'role_type',
+    domain: 'role',
     action: 'create',
     recordId: created.id,
     recordLabel: input.code,
-    summary: `Created role type ${input.code} (${input.name})`,
+    summary: `Created role ${input.code} (${input.name})`,
   });
   return created;
 }
 
-export async function updateRoleType(
-  id: string,
-  input: RoleTypeInput
-): Promise<RoleType> {
-  const updated = await roleTypes().update(
+export async function updateRole(id: string, input: RoleInput): Promise<Role> {
+  const updated = await roles().update(
     { id },
     {
       code: input.code,
       name: input.name,
       category: input.category,
       description: input.description,
+      orgUnit: input.orgUnit,
+      solutionArea: input.solutionArea,
+      subArea: input.subArea,
+      roleFamily: input.roleFamily,
       isAccountAssignable: input.isAccountAssignable ?? true,
       isTerritoryAssignable: input.isTerritoryAssignable ?? false,
       sortOrder: input.sortOrder,
@@ -96,11 +109,11 @@ export async function updateRoleType(
     }
   );
   await logAudit({
-    domain: 'role_type',
+    domain: 'role',
     action: 'update',
     recordId: id,
     recordLabel: input.code,
-    summary: `Updated role type ${input.code}`,
+    summary: `Updated role ${input.code}`,
   });
   return updated;
 }

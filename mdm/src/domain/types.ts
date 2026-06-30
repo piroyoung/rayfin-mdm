@@ -11,24 +11,22 @@ import type { ChangeRequest } from '../../rayfin/data/ChangeRequest';
 import type { Account } from '../../rayfin/data/Account';
 import type { ReferenceValue } from '../../rayfin/data/ReferenceValue';
 import type { FiscalYear } from '../../rayfin/data/FiscalYear';
-import type { RoleType } from '../../rayfin/data/RoleType';
+import type { Role } from '../../rayfin/data/Role';
 import type { Employee } from '../../rayfin/data/Employee';
 import type { Territory } from '../../rayfin/data/Territory';
-import type { AccountTerritoryAssignment } from '../../rayfin/data/AccountTerritoryAssignment';
+import type { TerritoryAccountAssignment } from '../../rayfin/data/TerritoryAccountAssignment';
 import type { TerritoryRoleAssignment } from '../../rayfin/data/TerritoryRoleAssignment';
-import type { AccountEmployeeAssignment } from '../../rayfin/data/AccountEmployeeAssignment';
 import type { SourceXref } from '../../rayfin/data/SourceXref';
 import type { DataQualityIssue } from '../../rayfin/data/DataQualityIssue';
 
 export type { AuditEvent, ChangeRequest, Account, ReferenceValue };
 export type {
   FiscalYear,
-  RoleType,
+  Role,
   Employee,
   Territory,
-  AccountTerritoryAssignment,
+  TerritoryAccountAssignment,
   TerritoryRoleAssignment,
-  AccountEmployeeAssignment,
   SourceXref,
   DataQualityIssue,
 };
@@ -42,7 +40,7 @@ export type AuditDomain = AuditEvent['domain'];
 export type AuditAction = AuditEvent['action'];
 
 // ── Territory-assignment MDM enums (derived from the entity classes) ──
-export type AssignmentStatus = AccountEmployeeAssignment['assignmentStatus'];
+export type AssignmentStatus = TerritoryRoleAssignment['assignmentStatus'];
 export type IssueSeverity = DataQualityIssue['severity'];
 export type ResolutionStatus = DataQualityIssue['resolutionStatus'];
 
@@ -139,8 +137,6 @@ export const ISSUE_TYPE_META: Record<string, Labelled> = {
   UNKNOWN_EMPLOYEE: { label: 'Unknown employee' },
   INACTIVE_EMPLOYEE_ASSIGNED: { label: 'Inactive employee assigned' },
   INVALID_TERRITORY: { label: 'Invalid territory' },
-  MULTIPLE_PRIMARY_OWNER: { label: 'Multiple primary owners' },
-  MISSING_PRIMARY_OWNER: { label: 'Missing primary owner' },
   MULTIPLE_TERRITORY_ROLE_MEMBER: { label: 'Multiple members in a territory seat' },
   MULTIPLE_TERRITORY_PER_ACCOUNT: { label: 'Account in multiple territories' },
   ROLE_MISMATCH: { label: 'Assigned role differs from home role' },

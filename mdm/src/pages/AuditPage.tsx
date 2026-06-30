@@ -30,7 +30,7 @@ const DOMAIN_LABELS: Record<AuditDomain, string> = {
   territory: 'Territory',
   territory_role: 'Territory role seat',
   fiscal_year: 'Fiscal year',
-  role_type: 'Role type',
+  role: 'Role',
   assignment: 'Assignment',
   source_xref: 'Source xref',
   data_quality: 'Data quality',

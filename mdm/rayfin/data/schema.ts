@@ -1,15 +1,14 @@
 import type { Account } from './Account.js';
-import type { AccountEmployeeAssignment } from './AccountEmployeeAssignment.js';
-import type { AccountTerritoryAssignment } from './AccountTerritoryAssignment.js';
 import type { AuditEvent } from './AuditEvent.js';
 import type { ChangeRequest } from './ChangeRequest.js';
 import type { DataQualityIssue } from './DataQualityIssue.js';
 import type { Employee } from './Employee.js';
 import type { FiscalYear } from './FiscalYear.js';
 import type { ReferenceValue } from './ReferenceValue.js';
-import type { RoleType } from './RoleType.js';
+import type { Role } from './Role.js';
 import type { SourceXref } from './SourceXref.js';
 import type { Territory } from './Territory.js';
+import type { TerritoryAccountAssignment } from './TerritoryAccountAssignment.js';
 import type { TerritoryRoleAssignment } from './TerritoryRoleAssignment.js';
 
 /**
@@ -24,12 +23,11 @@ export type MdmSchema = {
   ReferenceValue: ReferenceValue;
   // Territory-assignment MDM domain
   FiscalYear: FiscalYear;
-  RoleType: RoleType;
+  Role: Role;
   Employee: Employee;
   Territory: Territory;
-  AccountTerritoryAssignment: AccountTerritoryAssignment;
+  TerritoryAccountAssignment: TerritoryAccountAssignment;
   TerritoryRoleAssignment: TerritoryRoleAssignment;
-  AccountEmployeeAssignment: AccountEmployeeAssignment;
   SourceXref: SourceXref;
   DataQualityIssue: DataQualityIssue;
 };

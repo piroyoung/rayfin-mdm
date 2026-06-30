@@ -36,7 +36,7 @@ vi.mock('@/services/rayfinClient', () => {
         FiscalYear: makeEntity('FiscalYear', [
           { id: 'fy1', code: 'FY26', name: 'FY26', sortOrder: 1 },
         ]),
-        RoleType: makeEntity('RoleType', [
+        Role: makeEntity('Role', [
           { id: 'r1', code: 'AE', name: 'Account Executive', isActive: true },
         ]),
         Employee: makeEntity('Employee', [
@@ -45,10 +45,10 @@ vi.mock('@/services/rayfinClient', () => {
         Territory: makeEntity('Territory', [
           { id: 't1', territoryCode: 'JPN.01', territoryName: 'POD 1' },
         ]),
-        AccountEmployeeAssignment: makeEntity('AccountEmployeeAssignment', [
-          { id: 'ea1', accountId: 'a1', roleTypeCode: 'AE', isPrimary: true },
+        TerritoryRoleAssignment: makeEntity('TerritoryRoleAssignment', [
+          { id: 'tra1', territoryId: 't1', employeeId: 'e1', roleTypeCode: 'AE' },
         ]),
-        AccountTerritoryAssignment: makeEntity('AccountTerritoryAssignment', [
+        TerritoryAccountAssignment: makeEntity('TerritoryAccountAssignment', [
           { id: 'ta1', accountId: 'a1', territoryId: 't1' },
         ]),
         SourceXref: makeEntity('SourceXref', [
@@ -65,13 +65,11 @@ vi.mock('@/services/rayfinClient', () => {
 });
 
 import { listFiscalYears } from '@/services/fiscalYears';
-import { listRoleTypes } from '@/services/roleTypes';
+import { listRoles } from '@/services/roles';
 import { listEmployees } from '@/services/employees';
 import { listTerritories } from '@/services/territories';
-import {
-  listEmployeeAssignments,
-  listTerritoryAssignments,
-} from '@/services/assignments';
+import { listTerritoryAssignments } from '@/services/assignments';
+import { listTerritoryRoleAssignments } from '@/services/territoryRoleAssignments';
 import { listSourceXrefs } from '@/services/sourceXref';
 import { listDataQualityIssues } from '@/services/dataQuality';
 
@@ -82,10 +80,10 @@ describe('territory-assignment service projections', () => {
       expect(h.selects.FiscalYear).toContain(f);
   });
 
-  it('selects role-type business fields', async () => {
-    await listRoleTypes();
+  it('selects role business fields', async () => {
+    await listRoles();
     for (const f of ['id', 'code', 'name', 'isActive'])
-      expect(h.selects.RoleType).toContain(f);
+      expect(h.selects.Role).toContain(f);
   });
 
   it('selects employee business fields', async () => {
@@ -100,16 +98,16 @@ describe('territory-assignment service projections', () => {
       expect(h.selects.Territory).toContain(f);
   });
 
-  it('selects employee-assignment business fields', async () => {
-    await listEmployeeAssignments();
-    for (const f of ['id', 'accountId', 'employeeId', 'roleTypeCode', 'isPrimary'])
-      expect(h.selects.AccountEmployeeAssignment).toContain(f);
+  it('selects territory-role-assignment business fields', async () => {
+    await listTerritoryRoleAssignments();
+    for (const f of ['id', 'territoryId', 'employeeId', 'roleTypeCode', 'fiscalYearId'])
+      expect(h.selects.TerritoryRoleAssignment).toContain(f);
   });
 
   it('selects territory-assignment business fields', async () => {
     await listTerritoryAssignments();
     for (const f of ['id', 'accountId', 'territoryId', 'fiscalYearId'])
-      expect(h.selects.AccountTerritoryAssignment).toContain(f);
+      expect(h.selects.TerritoryAccountAssignment).toContain(f);
   });
 
   it('selects source-xref business fields', async () => {

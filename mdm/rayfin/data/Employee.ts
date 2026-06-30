@@ -14,12 +14,13 @@ import {
  * never on the employee row.
  *
  * `roleTypeCode` is the person's *home* role (the role they are normally staffed
- * as, e.g. an AE). It is a default/identity attribute; the authoritative role
- * for a given seat is the one on the assignment, so a person can still cover a
- * different role in a specific territory.
+ * as, e.g. an AE) and references {@link Role.code}. It is a default/identity
+ * attribute; the authoritative role for a given seat is the one on the
+ * assignment, so a person can still cover a different role in a specific
+ * territory. Management is itself a role/role-family, so there is no manager
+ * self-reference here.
  *
- * Self-references its manager via `managerEmployeeId`. SCD-Type-2 history is
- * carried by validFrom / validTo / currentFlag.
+ * SCD-Type-2 history is carried by validFrom / validTo / currentFlag.
  */
 @entity()
 @authenticated('*')
@@ -37,13 +38,9 @@ export class Employee {
   @text({ max: 255, optional: true }) localName?: string;
 
   @text({ max: 255, optional: true }) jobTitle?: string;
-  @text({ max: 128, optional: true }) roleFamily?: string;
 
-  /** Home role — references {@link RoleType.code}. The person's default role. */
+  /** Home role — references {@link Role.code}. The person's default role. */
   @text({ max: 64, optional: true }) roleTypeCode?: string;
-
-  @uuid({ optional: true }) organizationUnitId?: string;
-  @uuid({ optional: true }) managerEmployeeId?: string;
 
   @text({ max: 2, optional: true }) countryCode?: string;
   @text({ max: 128, optional: true }) officeLocation?: string;

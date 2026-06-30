@@ -4,13 +4,11 @@
  * should exist — with no Rayfin/network dependency, so it is fully unit-testable
  * and reusable by both the dashboard (counts) and the persistence layer.
  */
-import { assignmentScopeKey, findMultiplePrimaryGroups } from './assignments';
 import { findMultipleSeatMembers } from './territoryRoster';
 import { detectCycles } from './hierarchy';
 import { findAccountDuplicates } from './duplicates';
 import type {
-  AccountEmployeeAssignment,
-  AccountTerritoryAssignment,
+  TerritoryAccountAssignment,
   TerritoryRoleAssignment,
   Account,
   DataQualityIssue,
@@ -23,8 +21,7 @@ export interface QualitySnapshot {
   accounts: Account[];
   employees: Employee[];
   territories: Territory[];
-  employeeAssignments: AccountEmployeeAssignment[];
-  territoryAssignments: AccountTerritoryAssignment[];
+  territoryAssignments: TerritoryAccountAssignment[];
   territoryRoleAssignments: TerritoryRoleAssignment[];
 }
 
@@ -57,7 +54,6 @@ export function evaluateAssignmentQuality(
     accounts,
     employees,
     territories,
-    employeeAssignments,
     territoryAssignments,
     territoryRoleAssignments,
   } = snapshot;
@@ -66,7 +62,6 @@ export function evaluateAssignmentQuality(
   const employeeById = new Map(employees.map((e) => [e.id, e]));
   const territoryById = new Map(territories.map((t) => [t.id, t]));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
-  const roleOf = (a: AccountEmployeeAssignment) => a.roleTypeCode;
   const accountLabel = (id: string) =>
     accountById.get(id)?.nameDisplay ??
     accountById.get(id)?.nameLegal ??
@@ -100,44 +95,6 @@ export function evaluateAssignmentQuality(
         description: `Possible duplicate account (${group.reasons.join(
           ', '
         )}) — ${group.records.length} records in the group.`,
-      });
-    }
-  }
-
-  // ── Employee-assignment-level rules ──
-  for (const a of employeeAssignments) {
-    if (!a.currentFlag) continue;
-    const emp = employeeById.get(a.employeeId);
-    if (!emp) {
-      findings.push({
-        entityType: 'assignment',
-        entityId: a.id,
-        issueType: 'UNKNOWN_EMPLOYEE',
-        severity: 'high',
-        description: `Assignment on "${accountLabel(
-          a.accountId
-        )}" (${roleOf(a)}) references an unknown employee.`,
-      });
-    } else if (!emp.isActive) {
-      findings.push({
-        entityType: 'assignment',
-        entityId: a.id,
-        issueType: 'INACTIVE_EMPLOYEE_ASSIGNED',
-        severity: 'medium',
-        description: `Inactive employee "${emp.displayName}" is assigned to "${accountLabel(
-          a.accountId
-        )}" (${roleOf(a)}).`,
-      });
-    }
-    if (a.territoryId && !territoryById.has(a.territoryId)) {
-      findings.push({
-        entityType: 'assignment',
-        entityId: a.id,
-        issueType: 'INVALID_TERRITORY',
-        severity: 'high',
-        description: `Assignment on "${accountLabel(
-          a.accountId
-        )}" references a territory that no longer exists.`,
       });
     }
   }
@@ -181,7 +138,7 @@ export function evaluateAssignmentQuality(
     });
   }
 
-  // ── Territory-role seat rules (employee validity + single seat) ──
+  // ── Territory-role seat rules (employee validity + single seat + role match) ──
   for (const seat of territoryRoleAssignments) {
     if (!seat.currentFlag) continue;
     const emp = employeeById.get(seat.employeeId);
@@ -206,6 +163,22 @@ export function evaluateAssignmentQuality(
         )}".`,
       });
     }
+    // The person's home role differs from the role they're staffed as here.
+    if (
+      emp &&
+      emp.roleTypeCode &&
+      emp.roleTypeCode !== seat.roleTypeCode
+    ) {
+      findings.push({
+        entityType: 'territory_role',
+        entityId: seat.id,
+        issueType: 'ROLE_MISMATCH',
+        severity: 'low',
+        description: `"${emp.displayName}" holds the ${seat.roleTypeCode} seat in territory "${territoryLabel(
+          seat.territoryId
+        )}" but their home role is ${emp.roleTypeCode}.`,
+      });
+    }
     if (!territoryById.has(seat.territoryId)) {
       findings.push({
         entityType: 'territory_role',
@@ -228,46 +201,6 @@ export function evaluateAssignmentQuality(
       description: `Territory "${territoryLabel(sample.territoryId)}" has ${
         group.rows.length
       } members in the ${sample.roleTypeCode} seat; only one is allowed.`,
-    });
-  }
-
-  // ── Primary-owner rules (per account / role / fiscal year scope) ──
-  const currentEmp = employeeAssignments.filter((a) => a.currentFlag);
-
-  // Multiple primaries.
-  for (const group of findMultiplePrimaryGroups(currentEmp)) {
-    const sample = group.rows[0];
-    findings.push({
-      entityType: 'account',
-      entityId: sample.accountId,
-      issueType: 'MULTIPLE_PRIMARY_OWNER',
-      severity: 'high',
-      description: `"${accountLabel(sample.accountId)}" has ${
-        group.rows.length
-      } primary owners for role ${sample.roleTypeCode}.`,
-    });
-  }
-
-  // Missing primary: a scope that has rows but none flagged primary.
-  const byScope = new Map<string, AccountEmployeeAssignment[]>();
-  for (const a of currentEmp) {
-    const key = assignmentScopeKey(a);
-    const arr = byScope.get(key) ?? [];
-    arr.push(a);
-    byScope.set(key, arr);
-  }
-  for (const rows of byScope.values()) {
-    if (rows.length === 0) continue;
-    if (rows.some((r) => r.isPrimary)) continue;
-    const sample = rows[0];
-    findings.push({
-      entityType: 'account',
-      entityId: sample.accountId,
-      issueType: 'MISSING_PRIMARY_OWNER',
-      severity: 'medium',
-      description: `"${accountLabel(
-        sample.accountId
-      )}" has no primary owner for role ${sample.roleTypeCode}.`,
     });
   }
 

@@ -1,4 +1,4 @@
-/** Territories: list, search, CRUD with parent / fiscal-year / owner selects. */
+/** Territories: list, search, CRUD with parent / fiscal-year selects. */
 import { useMemo, useState } from 'react';
 
 import {
@@ -9,10 +9,9 @@ import {
   type TerritoryInput,
 } from '@/services/territories';
 import { listFiscalYears } from '@/services/fiscalYears';
-import { listEmployees } from '@/services/employees';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/hooks/useToast';
-import type { Employee, FiscalYear, Territory } from '@/domain/types';
+import type { FiscalYear, Territory } from '@/domain/types';
 import {
   Badge,
   Button,
@@ -30,16 +29,14 @@ import {
 interface TerritoryPageData {
   territories: Territory[];
   fiscalYears: FiscalYear[];
-  employees: Employee[];
 }
 
 const loadTerritoryPage = async (): Promise<TerritoryPageData> => {
-  const [territories, fiscalYears, employees] = await Promise.all([
+  const [territories, fiscalYears] = await Promise.all([
     listTerritories(),
     listFiscalYears(),
-    listEmployees(),
   ]);
-  return { territories, fiscalYears, employees };
+  return { territories, fiscalYears };
 };
 
 const EMPTY: TerritoryInput = { territoryCode: '', territoryName: '' };
@@ -55,7 +52,6 @@ function snapshot(t: Territory): TerritoryInput {
     industryCode: t.industryCode,
     region: t.region,
     countryCode: t.countryCode,
-    ownerEmployeeId: t.ownerEmployeeId,
     isActive: t.isActive,
   };
 }
@@ -65,7 +61,6 @@ function TerritoryForm({
   selfId,
   territories,
   fiscalYears,
-  employees,
   saving,
   onCancel,
   onSubmit,
@@ -74,7 +69,6 @@ function TerritoryForm({
   selfId?: string;
   territories: Territory[];
   fiscalYears: FiscalYear[];
-  employees: Employee[];
   saving: boolean;
   onCancel: () => void;
   onSubmit: (input: TerritoryInput) => void;
@@ -148,22 +142,6 @@ function TerritoryForm({
             ))}
           </Select>
         </Field>
-        <Field label="Owner (employee)">
-          <Select
-            value={form.ownerEmployeeId ?? ''}
-            onChange={(e) =>
-              set({ ownerEmployeeId: e.target.value || undefined })
-            }
-          >
-            <option value="">— none —</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.displayName}
-                {emp.alias ? ` (${emp.alias})` : ''}
-              </option>
-            ))}
-          </Select>
-        </Field>
         <Field label="Segment code">
           <Input
             value={form.segmentCode ?? ''}
@@ -224,16 +202,11 @@ export function TerritoriesPage() {
 
   const territories = useMemo(() => data?.territories ?? [], [data]);
   const fiscalYears = useMemo(() => data?.fiscalYears ?? [], [data]);
-  const employees = useMemo(() => data?.employees ?? [], [data]);
 
   const fyCode = useMemo(() => {
     const map = new Map(fiscalYears.map((fy) => [fy.id, fy.code]));
     return (id?: string) => (id ? (map.get(id) ?? '—') : '—');
   }, [fiscalYears]);
-  const empName = useMemo(() => {
-    const map = new Map(employees.map((e) => [e.id, e.displayName]));
-    return (id?: string) => (id ? (map.get(id) ?? '—') : '—');
-  }, [employees]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -332,7 +305,6 @@ export function TerritoriesPage() {
                   <th className="px-4 py-3">Territory</th>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Fiscal year</th>
-                  <th className="px-4 py-3">Owner</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -354,9 +326,6 @@ export function TerritoriesPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {fyCode(t.fiscalYearId)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {empName(t.ownerEmployeeId)}
                     </td>
                     <td className="px-4 py-3">
                       <Badge tone={t.isActive ? 'green' : 'slate'}>
@@ -417,7 +386,6 @@ export function TerritoriesPage() {
           selfId={editing?.id}
           territories={territories}
           fiscalYears={fiscalYears}
-          employees={employees}
           saving={saving}
           onCancel={() => {
             setCreating(false);

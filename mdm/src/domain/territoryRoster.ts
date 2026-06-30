@@ -5,8 +5,7 @@
  * The roster is the canonical place where role → person is decided: each
  * territory has exactly ONE current member per role per fiscal year. An
  * account's coverage is then *derived* by reading the roster of the territory
- * the account sits in, with per-account {@link AccountEmployeeAssignment} rows
- * acting only as explicit overrides for the minority of exception accounts.
+ * the account sits in — people are never stored per account.
  */
 
 /** Minimal shape needed to reason about one-seat-per-role uniqueness. */
@@ -66,26 +65,13 @@ interface RosterSeat {
   currentFlag: boolean;
 }
 
-interface OverrideRow {
-  id: string;
-  accountId: string;
-  roleTypeCode: string;
-  fiscalYearId: string;
-  employeeId: string;
-  isPrimary: boolean;
-  currentFlag: boolean;
-}
-
-export type CoverageSource = 'override' | 'territory';
-
-/** One resolved role seat for an account, with where the person came from. */
+/** One resolved role seat for an account, derived from its territory roster. */
 export interface DerivedAccountRole {
   roleTypeCode: string;
   employeeId: string;
-  source: CoverageSource;
-  /** The territory the seat was read from (only for territory-sourced rows). */
-  territoryId?: string;
-  /** The underlying assignment row id (override or roster seat). */
+  /** The territory the seat was read from. */
+  territoryId: string;
+  /** The underlying roster seat row id. */
   assignmentId: string;
 }
 
@@ -94,7 +80,6 @@ export interface DeriveAccountTeamArgs {
   fiscalYearId: string;
   territoryAssignments: TerritoryLink[];
   territoryRoleAssignments: RosterSeat[];
-  employeeAssignments: OverrideRow[];
 }
 
 /**
@@ -117,9 +102,9 @@ export function currentTerritoryIdsForAccount(
 }
 
 /**
- * Resolve an account's role coverage for a fiscal year. Per role: an explicit
- * account override wins (primary preferred); otherwise the seat from the
- * account's territory roster is used. Roles with neither are simply absent.
+ * Resolve an account's role coverage for a fiscal year by reading the roster of
+ * the territory (or territories) the account sits in. Per role, the current
+ * seat from the account's territory is used. Roles with no seat are absent.
  *
  * Returned rows are sorted by role code for stable rendering/testing.
  */
@@ -135,8 +120,8 @@ export function deriveAccountTeam(
   const territorySet = new Set(territoryIds);
 
   // Territory roster owner per role (first current seat from one of the
-  // account's territories). Primary-ish tie-break is unnecessary — a seat is
-  // single by construction; multiple is a separate DQ finding.
+  // account's territories). A seat is single by construction; multiple is a
+  // separate DQ finding.
   const byRole = new Map<string, DerivedAccountRole>();
   for (const seat of args.territoryRoleAssignments) {
     if (!seat.currentFlag) continue;
@@ -146,28 +131,8 @@ export function deriveAccountTeam(
     byRole.set(seat.roleTypeCode, {
       roleTypeCode: seat.roleTypeCode,
       employeeId: seat.employeeId,
-      source: 'territory',
       territoryId: seat.territoryId,
       assignmentId: seat.id,
-    });
-  }
-
-  // Overrides win. Prefer the primary override when several exist for a role.
-  const overrideByRole = new Map<string, OverrideRow>();
-  for (const o of args.employeeAssignments) {
-    if (!o.currentFlag) continue;
-    if (o.accountId !== accountId || o.fiscalYearId !== fiscalYearId) continue;
-    const existing = overrideByRole.get(o.roleTypeCode);
-    if (!existing || (o.isPrimary && !existing.isPrimary)) {
-      overrideByRole.set(o.roleTypeCode, o);
-    }
-  }
-  for (const [role, o] of overrideByRole) {
-    byRole.set(role, {
-      roleTypeCode: role,
-      employeeId: o.employeeId,
-      source: 'override',
-      assignmentId: o.id,
     });
   }
 

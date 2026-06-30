@@ -18,17 +18,14 @@ import {
   accountName,
 } from '@/services/accounts';
 import { createFiscalYear, listFiscalYears } from '@/services/fiscalYears';
-import { createRoleType } from '@/services/roleTypes';
+import { createRole } from '@/services/roles';
 import { createEmployee, listEmployees } from '@/services/employees';
 import { createTerritory, listTerritories } from '@/services/territories';
-import {
-  createEmployeeAssignment,
-  createTerritoryAssignment,
-} from '@/services/assignments';
+import { createTerritoryAssignment } from '@/services/assignments';
 import { createTerritoryRoleAssignment } from '@/services/territoryRoleAssignments';
 import type { AccountInput } from '@/services/accounts';
 import type { FiscalYearInput } from '@/services/fiscalYears';
-import type { RoleTypeInput } from '@/services/roleTypes';
+import type { RoleInput } from '@/services/roles';
 import type { EmployeeInput } from '@/services/employees';
 import type { TerritoryInput } from '@/services/territories';
 import type { RecordStatus } from '@/domain/types';
@@ -74,14 +71,39 @@ const REFERENCE_SETS: Record<string, Array<[string, string]>> = {
     ['specialist', 'Specialist'],
     ['management', 'Management'],
   ],
+  org_unit: [
+    ['SMC', 'SME&C'],
+    ['STU', 'Solution Team Unit'],
+    ['CSU', 'Customer Success Unit'],
+    ['GPS', 'Global Partner Solutions'],
+  ],
+  solution_area: [
+    ['apps_infra', 'Apps & Infrastructure'],
+    ['data_ai', 'Data & AI'],
+    ['biz_apps', 'Business Applications'],
+    ['modern_work', 'Modern Work'],
+    ['security', 'Security'],
+  ],
+  sub_area: [
+    ['copilot', 'Copilot'],
+    ['azure_infra', 'Azure Infrastructure'],
+    ['azure_data', 'Azure Data'],
+    ['dynamics', 'Dynamics 365'],
+    ['m365', 'Microsoft 365'],
+  ],
+  role_family: [
+    ['sales', 'Sales'],
+    ['technical', 'Technical'],
+    ['solution_engineer', 'Solution Engineer'],
+    ['specialist', 'Specialist'],
+    ['management', 'Management'],
+  ],
   issue_type: [
     ['MISSING_ACCOUNT_ID', 'Missing account ID'],
     ['DUPLICATE_ACCOUNT', 'Duplicate account candidate'],
     ['UNKNOWN_EMPLOYEE', 'Unknown employee'],
     ['INACTIVE_EMPLOYEE_ASSIGNED', 'Inactive employee assigned'],
     ['INVALID_TERRITORY', 'Invalid territory'],
-    ['MULTIPLE_PRIMARY_OWNER', 'Multiple primary owners'],
-    ['MISSING_PRIMARY_OWNER', 'Missing primary owner'],
     ['PARENT_CYCLE', 'Parent hierarchy cycle'],
     ['ALIAS_AMBIGUOUS', 'Ambiguous alias'],
     ['UNRESOLVED_PLACEHOLDER', 'Unresolved placeholder assignee'],
@@ -242,27 +264,29 @@ const FISCAL_YEARS: FiscalYearInput[] = [
   },
 ];
 
-const ROLE_TYPES: RoleTypeInput[] = [
-  { code: 'AE', name: 'Account Executive', category: 'sales', sortOrder: 1 },
-  { code: 'DAE', name: 'Digital Account Executive', category: 'sales', sortOrder: 2 },
-  { code: 'ATS', name: 'Account Technology Strategist', category: 'technical', sortOrder: 3 },
-  { code: 'CSAM', name: 'Customer Success Account Manager', category: 'sales', sortOrder: 4 },
-  { code: 'CE', name: 'Cloud Engineer', category: 'technical', sortOrder: 5 },
-  { code: 'SE', name: 'Solution Engineer', category: 'solution_engineer', sortOrder: 6 },
-  { code: 'COPILOT_SE', name: 'Copilot Solution Engineer', category: 'solution_engineer', sortOrder: 7 },
-  { code: 'INFRA_SE', name: 'Infrastructure Solution Engineer', category: 'solution_engineer', sortOrder: 8 },
-  { code: 'DATA_AI_SE', name: 'Data & AI Solution Engineer', category: 'solution_engineer', sortOrder: 9 },
-  { code: 'APPS_SE', name: 'Business Apps Solution Engineer', category: 'solution_engineer', sortOrder: 10 },
-  { code: 'SECURITY_SE', name: 'Security Solution Engineer', category: 'solution_engineer', sortOrder: 11 },
-  { code: 'SSP', name: 'Solution Specialist', category: 'specialist', sortOrder: 12 },
-  { code: 'GBB', name: 'Global Black Belt', category: 'specialist', sortOrder: 13 },
-  { code: 'TECH_ARCH', name: 'Technical Architect', category: 'technical', sortOrder: 14 },
-  { code: 'PARTNER_SE', name: 'Partner Solution Engineer', category: 'solution_engineer', sortOrder: 15 },
-  { code: 'CSM', name: 'Customer Success Manager', category: 'sales', sortOrder: 16 },
+const ROLES: RoleInput[] = [
+  { code: 'AE', name: 'Account Executive', category: 'sales', orgUnit: 'SMC', roleFamily: 'sales', sortOrder: 1 },
+  { code: 'DAE', name: 'Digital Account Executive', category: 'sales', orgUnit: 'SMC', roleFamily: 'sales', sortOrder: 2 },
+  { code: 'ATS', name: 'Account Technology Strategist', category: 'technical', orgUnit: 'SMC', roleFamily: 'technical', sortOrder: 3 },
+  { code: 'CSAM', name: 'Customer Success Account Manager', category: 'sales', orgUnit: 'CSU', roleFamily: 'sales', sortOrder: 4 },
+  { code: 'CE', name: 'Cloud Engineer', category: 'technical', orgUnit: 'CSU', solutionArea: 'apps_infra', subArea: 'azure_infra', roleFamily: 'technical', sortOrder: 5 },
+  { code: 'SE', name: 'Solution Engineer', category: 'solution_engineer', orgUnit: 'STU', roleFamily: 'solution_engineer', sortOrder: 6 },
+  { code: 'COPILOT_SE', name: 'Copilot Solution Engineer', category: 'solution_engineer', orgUnit: 'STU', solutionArea: 'modern_work', subArea: 'copilot', roleFamily: 'solution_engineer', sortOrder: 7 },
+  { code: 'INFRA_SE', name: 'Infrastructure Solution Engineer', category: 'solution_engineer', orgUnit: 'STU', solutionArea: 'apps_infra', subArea: 'azure_infra', roleFamily: 'solution_engineer', sortOrder: 8 },
+  { code: 'DATA_AI_SE', name: 'Data & AI Solution Engineer', category: 'solution_engineer', orgUnit: 'STU', solutionArea: 'data_ai', subArea: 'azure_data', roleFamily: 'solution_engineer', sortOrder: 9 },
+  { code: 'APPS_SE', name: 'Business Apps Solution Engineer', category: 'solution_engineer', orgUnit: 'STU', solutionArea: 'biz_apps', subArea: 'dynamics', roleFamily: 'solution_engineer', sortOrder: 10 },
+  { code: 'SECURITY_SE', name: 'Security Solution Engineer', category: 'solution_engineer', orgUnit: 'STU', solutionArea: 'security', roleFamily: 'solution_engineer', sortOrder: 11 },
+  { code: 'SSP', name: 'Solution Specialist', category: 'specialist', orgUnit: 'STU', roleFamily: 'specialist', sortOrder: 12 },
+  { code: 'GBB', name: 'Global Black Belt', category: 'specialist', orgUnit: 'STU', roleFamily: 'specialist', sortOrder: 13 },
+  { code: 'TECH_ARCH', name: 'Technical Architect', category: 'technical', orgUnit: 'STU', roleFamily: 'technical', sortOrder: 14 },
+  { code: 'PARTNER_SE', name: 'Partner Solution Engineer', category: 'solution_engineer', orgUnit: 'GPS', roleFamily: 'solution_engineer', sortOrder: 15 },
+  { code: 'CSM', name: 'Customer Success Manager', category: 'sales', orgUnit: 'CSU', roleFamily: 'sales', sortOrder: 16 },
   {
     code: 'MANAGER',
     name: 'People Manager',
     category: 'management',
+    orgUnit: 'SMC',
+    roleFamily: 'management',
     isAccountAssignable: false,
     sortOrder: 17,
   },
@@ -270,14 +294,18 @@ const ROLE_TYPES: RoleTypeInput[] = [
     code: 'POD_LEAD',
     name: 'POD Lead',
     category: 'management',
+    orgUnit: 'SMC',
+    roleFamily: 'management',
     isTerritoryAssignable: true,
     sortOrder: 18,
   },
-  { code: 'INDUSTRY_ADVISOR', name: 'Industry Advisor', category: 'specialist', sortOrder: 19 },
+  { code: 'INDUSTRY_ADVISOR', name: 'Industry Advisor', category: 'specialist', orgUnit: 'STU', roleFamily: 'specialist', sortOrder: 19 },
   {
     code: 'TERRITORY_OWNER',
     name: 'Territory Owner',
     category: 'sales',
+    orgUnit: 'SMC',
+    roleFamily: 'sales',
     isTerritoryAssignable: true,
     sortOrder: 20,
   },
@@ -287,14 +315,14 @@ const ROLE_TYPES: RoleTypeInput[] = [
 // box. RJOHNSON is intentionally NOT seeded so the sample yields one unknown
 // alias; TBROWN is seeded inactive to exercise the inactive-employee rule.
 const SEED_EMPLOYEES: EmployeeInput[] = [
-  { alias: 'KTANAKA', displayName: 'Kenji Tanaka', upn: 'ktanaka@contoso.com', email: 'ktanaka@contoso.com', jobTitle: 'Account Executive', roleFamily: 'sales', roleTypeCode: 'AE', countryCode: 'JP', personnelNumber: 'P0001' },
-  { alias: 'HSATO', displayName: 'Haruki Sato', upn: 'hsato@contoso.com', email: 'hsato@contoso.com', jobTitle: 'Copilot Solution Engineer', roleFamily: 'solution_engineer', roleTypeCode: 'COPILOT_SE', countryCode: 'JP', personnelNumber: 'P0002' },
-  { alias: 'KMURATA', displayName: 'Kaori Murata', upn: 'kmurata@contoso.com', email: 'kmurata@contoso.com', jobTitle: 'Customer Success Account Manager', roleFamily: 'sales', roleTypeCode: 'CSAM', countryCode: 'JP', personnelNumber: 'P0003' },
-  { alias: 'SFUKUSAKO', displayName: 'Sora Fukusako', upn: 'sfukusako@contoso.com', email: 'sfukusako@contoso.com', jobTitle: 'Account Executive', roleFamily: 'sales', roleTypeCode: 'AE', countryCode: 'JP', personnelNumber: 'P0004' },
-  { alias: 'AOKAFOR', displayName: 'Ada Okafor', upn: 'aokafor@contoso.com', email: 'aokafor@contoso.com', jobTitle: 'Account Executive', roleFamily: 'sales', roleTypeCode: 'AE', countryCode: 'GB', personnelNumber: 'P0005' },
-  { alias: 'LCHEN', displayName: 'Li Chen', upn: 'lchen@contoso.com', email: 'lchen@contoso.com', jobTitle: 'POD Lead', roleFamily: 'management', roleTypeCode: 'POD_LEAD', countryCode: 'US', personnelNumber: 'P0006' },
-  { alias: 'MGARCIA', displayName: 'Maria Garcia', upn: 'mgarcia@contoso.com', email: 'mgarcia@contoso.com', jobTitle: 'Global Black Belt', roleFamily: 'specialist', roleTypeCode: 'GBB', countryCode: 'US', personnelNumber: 'P0007' },
-  { alias: 'TBROWN', displayName: 'Taylor Brown', upn: 'tbrown@contoso.com', email: 'tbrown@contoso.com', jobTitle: 'Cloud Engineer', roleFamily: 'technical', roleTypeCode: 'CE', countryCode: 'US', personnelNumber: 'P0008', isActive: false },
+  { alias: 'KTANAKA', displayName: 'Kenji Tanaka', upn: 'ktanaka@contoso.com', email: 'ktanaka@contoso.com', jobTitle: 'Account Executive', roleTypeCode: 'AE', countryCode: 'JP', personnelNumber: 'P0001' },
+  { alias: 'HSATO', displayName: 'Haruki Sato', upn: 'hsato@contoso.com', email: 'hsato@contoso.com', jobTitle: 'Copilot Solution Engineer', roleTypeCode: 'COPILOT_SE', countryCode: 'JP', personnelNumber: 'P0002' },
+  { alias: 'KMURATA', displayName: 'Kaori Murata', upn: 'kmurata@contoso.com', email: 'kmurata@contoso.com', jobTitle: 'Customer Success Account Manager', roleTypeCode: 'CSAM', countryCode: 'JP', personnelNumber: 'P0003' },
+  { alias: 'SFUKUSAKO', displayName: 'Sora Fukusako', upn: 'sfukusako@contoso.com', email: 'sfukusako@contoso.com', jobTitle: 'Account Executive', roleTypeCode: 'AE', countryCode: 'JP', personnelNumber: 'P0004' },
+  { alias: 'AOKAFOR', displayName: 'Ada Okafor', upn: 'aokafor@contoso.com', email: 'aokafor@contoso.com', jobTitle: 'Account Executive', roleTypeCode: 'AE', countryCode: 'GB', personnelNumber: 'P0005' },
+  { alias: 'LCHEN', displayName: 'Li Chen', upn: 'lchen@contoso.com', email: 'lchen@contoso.com', jobTitle: 'POD Lead', roleTypeCode: 'POD_LEAD', countryCode: 'US', personnelNumber: 'P0006' },
+  { alias: 'MGARCIA', displayName: 'Maria Garcia', upn: 'mgarcia@contoso.com', email: 'mgarcia@contoso.com', jobTitle: 'Global Black Belt', roleTypeCode: 'GBB', countryCode: 'US', personnelNumber: 'P0007' },
+  { alias: 'TBROWN', displayName: 'Taylor Brown', upn: 'tbrown@contoso.com', email: 'tbrown@contoso.com', jobTitle: 'Cloud Engineer', roleTypeCode: 'CE', countryCode: 'US', personnelNumber: 'P0008', isActive: false },
 ];
 
 const SEED_TERRITORIES: TerritoryInput[] = [
@@ -337,26 +365,12 @@ const SEED_ACCOUNT_TERRITORY: Array<{
   { account: 'Northwind Traders', territory: 'JPN.SMECC.FSI.0202', status: 'submitted' },
 ];
 
-/**
- * Per-account overrides — the EXCEPTION layer. These win over the territory
- * roster for one role on one account. Contoso keeps its territory AE/Copilot SE
- * but swaps in a dedicated CSAM, demonstrating override-beats-territory.
- */
-const ASSIGNMENT_SEED: Array<{
-  account: string;
-  role: string;
-  alias: string;
-  status: 'draft' | 'submitted' | 'approved' | 'active';
-}> = [
-  { account: 'Contoso Ltd', role: 'CSAM', alias: 'SFUKUSAKO', status: 'active' },
-];
-
 async function seedFiscalYears(): Promise<void> {
   for (const fy of FISCAL_YEARS) await createFiscalYear(fy);
 }
 
-async function seedRoleTypes(): Promise<void> {
-  for (const role of ROLE_TYPES) await createRoleType(role);
+async function seedRoles(): Promise<void> {
+  for (const role of ROLES) await createRole(role);
 }
 
 async function seedEmployees(): Promise<void> {
@@ -365,42 +379,6 @@ async function seedEmployees(): Promise<void> {
 
 async function seedTerritories(): Promise<void> {
   for (const t of SEED_TERRITORIES) await createTerritory(t);
-}
-
-/** Link seeded employees to seeded accounts for the current fiscal year. */
-async function seedAssignments(): Promise<void> {
-  const [accounts, employees, fiscalYears] = await Promise.all([
-    listAccounts(),
-    listEmployees(),
-    listFiscalYears(),
-  ]);
-  const fy =
-    fiscalYears.find((f) => f.isCurrent) ?? fiscalYears[fiscalYears.length - 1];
-  if (!fy) return;
-
-  const accountByName = new Map(
-    accounts.map((c) => [accountName(c).toLowerCase(), c.id])
-  );
-  const employeeByAlias = new Map(
-    employees
-      .filter((e) => e.alias)
-      .map((e) => [e.alias!.toLowerCase(), e.id])
-  );
-
-  for (const spec of ASSIGNMENT_SEED) {
-    const accountId = accountByName.get(spec.account.toLowerCase());
-    const employeeId = employeeByAlias.get(spec.alias.toLowerCase());
-    if (!accountId || !employeeId) continue;
-    await createEmployeeAssignment({
-      accountId,
-      employeeId,
-      fiscalYearId: fy.id,
-      roleTypeCode: spec.role,
-      isPrimary: true,
-      assignmentStatus: spec.status,
-      sourceSystem: 'Seed',
-    });
-  }
 }
 
 /** Staff each territory's roster — one member per role for the current FY. */
@@ -486,19 +464,17 @@ export async function ensureSeedData(): Promise<boolean> {
       roleTypeRows,
       employeeRows,
       territoryRows,
-      assignmentRows,
       territoryRoleRows,
       territoryAssignmentRows,
     ] = await Promise.all([
       client.data.ReferenceValue.findMany(),
       client.data.Account.findMany(),
       client.data.FiscalYear.findMany(),
-      client.data.RoleType.findMany(),
+      client.data.Role.findMany(),
       client.data.Employee.findMany(),
       client.data.Territory.findMany(),
-      client.data.AccountEmployeeAssignment.findMany(),
       client.data.TerritoryRoleAssignment.findMany(),
-      client.data.AccountTerritoryAssignment.findMany(),
+      client.data.TerritoryAccountAssignment.findMany(),
     ]);
 
     let seeded = false;
@@ -515,7 +491,7 @@ export async function ensureSeedData(): Promise<boolean> {
       seeded = true;
     }
     if (roleTypeRows.length === 0) {
-      await seedRoleTypes();
+      await seedRoles();
       seeded = true;
     }
     if (employeeRows.length === 0) {
@@ -524,11 +500,6 @@ export async function ensureSeedData(): Promise<boolean> {
     }
     if (territoryRows.length === 0) {
       await seedTerritories();
-      seeded = true;
-    }
-    // Assignments depend on accounts + employees + fiscal years existing.
-    if (assignmentRows.length === 0) {
-      await seedAssignments();
       seeded = true;
     }
     // Territory placement + roster depend on territories + employees + FYs.
