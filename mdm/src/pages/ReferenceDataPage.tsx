@@ -24,6 +24,7 @@ import {
   PageHeader,
   Select,
   Spinner,
+  Tooltip,
 } from '@/components/ui';
 
 const EMPTY: ReferenceInput = {
@@ -81,17 +82,19 @@ function ReferenceForm({
                   </option>
                 ))}
               </Select>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setNewSet(true);
-                  set({ setName: '' });
-                }}
-              >
-                New
-              </Button>
+              <Tooltip label="新しいリスト（セット）を作成します" side="bottom">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setNewSet(true);
+                    set({ setName: '' });
+                  }}
+                >
+                  New
+                </Button>
+              </Tooltip>
             </div>
           ) : (
             <Input
@@ -208,15 +211,20 @@ export function ReferenceDataPage() {
         title="Reference Data"
         subtitle="Governed code lists shared across the master-data domains."
         actions={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditing(null);
-              setCreating(true);
-            }}
+          <Tooltip
+            label="新しい参照データ（コードリストの値）を追加します"
+            side="bottom"
           >
-            + New value
-          </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditing(null);
+                setCreating(true);
+              }}
+            >
+              + New value
+            </Button>
+          </Tooltip>
         }
       />
 
@@ -261,24 +269,28 @@ export function ReferenceDataPage() {
                       {value.label}
                     </span>
                     {!value.isActive && <Badge tone="gray">Inactive</Badge>}
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
-                      onClick={() => {
-                        setCreating(false);
-                        setEditing(value);
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-red-600 hover:text-red-500 disabled:opacity-50"
-                      disabled={busyId === value.id}
-                      onClick={() => setToDelete(value)}
-                    >
-                      Delete
-                    </button>
+                    <Tooltip label="この参照値を編集します">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
+                        onClick={() => {
+                          setCreating(false);
+                          setEditing(value);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </Tooltip>
+                    <Tooltip label="この参照値を削除します">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-red-600 hover:text-red-500 disabled:opacity-50"
+                        disabled={busyId === value.id}
+                        onClick={() => setToDelete(value)}
+                      >
+                        Delete
+                      </button>
+                    </Tooltip>
                   </li>
                 ))}
               </ul>

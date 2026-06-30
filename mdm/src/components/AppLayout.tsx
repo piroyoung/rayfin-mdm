@@ -6,9 +6,10 @@ import { useAuth } from '@/hooks/AuthContext';
 import { setCurrentActor } from '@/services/session';
 import { initials } from '@/lib/format';
 import { cn } from '@/lib/format';
-import { Button } from '@/components/ui';
+import { Button, Tooltip } from '@/components/ui';
 
 type IconName =
+  | 'guide'
   | 'dashboard'
   | 'customers'
   | 'products'
@@ -17,6 +18,8 @@ type IconName =
   | 'audit';
 
 const ICONS: Record<IconName, string> = {
+  guide:
+    'M12 22a10 10 0 110-20 10 10 0 010 20zM9.5 9a2.5 2.5 0 014.9.7c0 1.7-2.5 2.5-2.5 2.5M12 16h.01',
   dashboard: 'M3 12h7V3H3v9zm0 9h7v-7H3v7zm11 0h7V12h-7v9zm0-18v7h7V3h-7z',
   customers:
     'M17 20h5v-1a4 4 0 00-3-3.87M9 20H4v-1a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zm6-4a3 3 0 10-2-5.24M5 11a3 3 0 002-5.24',
@@ -49,6 +52,7 @@ function Icon({ name }: { name: IconName }) {
 
 const NAV: Array<{ to: string; label: string; icon: IconName; end?: boolean }> =
   [
+    { to: '/guide', label: 'MDMとは？', icon: 'guide' },
     { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
     { to: '/customers', label: 'Customers', icon: 'customers' },
     { to: '/products', label: 'Products', icon: 'products' },
@@ -111,14 +115,20 @@ export function AppLayout() {
               <p className="truncate text-xs text-gray-500">{user?.email}</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-1 w-full justify-start"
-            onClick={() => void signOut()}
+          <Tooltip
+            label="MDM からサインアウトします"
+            side="top"
+            className="mt-1 w-full"
           >
-            Sign out
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => void signOut()}
+            >
+              Sign out
+            </Button>
+          </Tooltip>
         </div>
       </aside>
 
@@ -132,9 +142,11 @@ export function AppLayout() {
             </div>
             <span className="text-sm font-semibold">MDM</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-            Sign out
-          </Button>
+          <Tooltip label="MDM からサインアウトします" side="bottom">
+            <Button variant="ghost" size="sm" onClick={() => void signOut()}>
+              Sign out
+            </Button>
+          </Tooltip>
         </header>
 
         {/* Mobile nav */}

@@ -29,6 +29,7 @@ import {
   Select,
   Spinner,
   Textarea,
+  Tooltip,
 } from '@/components/ui';
 
 function prettyPayload(payload?: string): string | null {
@@ -158,28 +159,38 @@ export function StewardshipPage() {
 
                   {cr.status === 'open' && (
                     <div className="flex shrink-0 gap-2">
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        loading={busyId === cr.id}
-                        onClick={() => {
-                          setNote('');
-                          setDecision({ request: cr, kind: 'approve' });
-                        }}
+                      <Tooltip
+                        label="この変更を承認し、ゴールデンレコードに反映します"
+                        side="top"
                       >
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        loading={busyId === cr.id}
-                        onClick={() => {
-                          setNote('');
-                          setDecision({ request: cr, kind: 'reject' });
-                        }}
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          loading={busyId === cr.id}
+                          onClick={() => {
+                            setNote('');
+                            setDecision({ request: cr, kind: 'approve' });
+                          }}
+                        >
+                          Approve
+                        </Button>
+                      </Tooltip>
+                      <Tooltip
+                        label="この変更を却下し、修正のため差し戻します"
+                        side="top"
                       >
-                        Reject
-                      </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          loading={busyId === cr.id}
+                          onClick={() => {
+                            setNote('');
+                            setDecision({ request: cr, kind: 'reject' });
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </Tooltip>
                     </div>
                   )}
                 </div>
