@@ -16,18 +16,13 @@ import {
 export class AuditEvent {
   @uuid() id!: string;
 
-  @set(
-    'account',
-    'reference',
-    'change_request',
-    'employee',
-    'territory',
-    'fiscal_year',
-    'role_type',
-    'assignment',
-    'source_xref',
-    'data_quality'
-  )
+  /**
+   * Domain tag for the audited record. Stored as free text (not a narrow
+   * `@set`) because the audit trail is immutable and append-only: it must
+   * preserve domain tags from prior schema generations (e.g. legacy master
+   * domains) without a CHECK-constraint migration rejecting historical rows.
+   */
+  @text({ max: 32 })
   domain!:
     | 'account'
     | 'reference'
