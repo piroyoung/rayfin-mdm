@@ -15,23 +15,22 @@ import {
  * schema change. `code` is the stable business key referenced by both
  * {@link Employee.roleTypeCode} (a person's home role) and
  * {@link TerritoryRoleAssignment.roleTypeCode} (the role a seat is staffed as).
+ * It is no longer entered by hand — the UI presents `name` as the role's
+ * identity and the service auto-generates a unique `code` from it on create.
  *
- * The four organizational dimensions (`orgUnit`, `solutionArea`, `subArea`,
- * `roleFamily`) describe where a role sits in the org/coverage taxonomy. They
- * are open governed buckets validated against ReferenceValue, not enums.
+ * The organizational dimensions (`orgUnit`, `solutionArea`, `subArea`) describe
+ * where a role sits in the org/coverage taxonomy. They are open governed
+ * buckets validated against ReferenceValue, not enums.
  */
 @entity()
 @authenticated('*')
 export class Role {
   @uuid() id!: string;
 
-  /** Business key, e.g. 'AE', 'CSAM', 'CLOUD_AI_DATA_SE'. */
+  /** Business key auto-generated from {@link name}, e.g. 'AE', 'CSAM'. */
   @text({ max: 64, unique: true }) code!: string;
 
   @text({ max: 200 }) name!: string;
-
-  /** Open governed bucket: Sales, Technical, Solution Engineer, Specialist … */
-  @text({ max: 128, optional: true }) category?: string;
 
   @text({ max: 1000, optional: true }) description?: string;
 
@@ -41,8 +40,6 @@ export class Role {
   @text({ max: 128, optional: true }) solutionArea?: string;
   /** Finer sub-area within the solution area. */
   @text({ max: 128, optional: true }) subArea?: string;
-  /** Role family grouping (e.g. 'Sales', 'Technical', 'Specialist', 'Management'). */
-  @text({ max: 128, optional: true }) roleFamily?: string;
 
   /** Can this role be attached to an account-level assignment? */
   @boolean() isAccountAssignable!: boolean;

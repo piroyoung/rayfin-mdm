@@ -5,14 +5,13 @@ import { logAudit } from '@/services/audit';
 import type { Role } from '@/domain/types';
 
 export interface RoleInput {
-  code: string;
+  /** Optional: auto-generated from `name` when omitted (UI never sets it). */
+  code?: string;
   name: string;
-  category?: string;
   description?: string;
   orgUnit?: string;
   solutionArea?: string;
   subArea?: string;
-  roleFamily?: string;
   isAccountAssignable?: boolean;
   isTerritoryAssignable?: boolean;
   sortOrder?: number;
@@ -28,12 +27,10 @@ const ROLE_FIELDS = [
   'id',
   'code',
   'name',
-  'category',
   'description',
   'orgUnit',
   'solutionArea',
   'subArea',
-  'roleFamily',
   'isAccountAssignable',
   'isTerritoryAssignable',
   'sortOrder',
@@ -46,7 +43,7 @@ export async function listRoles(): Promise<Role[]> {
   const rows = await roles().select(ROLE_FIELDS).execute();
   return [...rows].sort(
     (a, b) =>
-      (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.code.localeCompare(b.code)
+      (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)
   );
 }
 
@@ -63,16 +60,44 @@ export function getRole(id: string): Promise<Role | null> {
     .findFirst();
 }
 
+/** Slugify a role name into an uppercase business-key stem. */
+function slugifyRoleCode(name: string): string {
+  const base = (name ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 48);
+  return base || 'ROLE';
+}
+
+/**
+ * Build a unique `code` from a role name. `code` is the system join key
+ * (Employee/TerritoryRoleAssignment reference it), so it must stay unique even
+ * though users no longer type it — duplicate copies get a numeric suffix.
+ */
+async function generateUniqueRoleCode(name: string): Promise<string> {
+  const base = slugifyRoleCode(name);
+  const taken = new Set((await listRoles()).map((r) => r.code));
+  if (!taken.has(base)) return base;
+  for (let i = 2; i < 10000; i += 1) {
+    const candidate = `${base}_${i}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${base}_${Date.now()}`;
+}
+
 export async function createRole(input: RoleInput): Promise<Role> {
+  const code = input.code?.trim()
+    ? input.code.trim()
+    : await generateUniqueRoleCode(input.name);
   const created = await roles().create({
-    code: input.code,
+    code,
     name: input.name,
-    category: input.category,
     description: input.description,
     orgUnit: input.orgUnit,
     solutionArea: input.solutionArea,
     subArea: input.subArea,
-    roleFamily: input.roleFamily,
     isAccountAssignable: input.isAccountAssignable ?? true,
     isTerritoryAssignable: input.isTerritoryAssignable ?? false,
     sortOrder: input.sortOrder,
@@ -84,8 +109,8 @@ export async function createRole(input: RoleInput): Promise<Role> {
     domain: 'role',
     action: 'create',
     recordId: created.id,
-    recordLabel: input.code,
-    summary: `Created role ${input.code} (${input.name})`,
+    recordLabel: input.name,
+    summary: `Created role ${input.name} (${code})`,
   });
   return created;
 }
@@ -94,14 +119,11 @@ export async function updateRole(id: string, input: RoleInput): Promise<Role> {
   const updated = await roles().update(
     { id },
     {
-      code: input.code,
       name: input.name,
-      category: input.category,
       description: input.description,
       orgUnit: input.orgUnit,
       solutionArea: input.solutionArea,
       subArea: input.subArea,
-      roleFamily: input.roleFamily,
       isAccountAssignable: input.isAccountAssignable ?? true,
       isTerritoryAssignable: input.isTerritoryAssignable ?? false,
       sortOrder: input.sortOrder,
@@ -112,8 +134,8 @@ export async function updateRole(id: string, input: RoleInput): Promise<Role> {
     domain: 'role',
     action: 'update',
     recordId: id,
-    recordLabel: input.code,
-    summary: `Updated role ${input.code}`,
+    recordLabel: input.name,
+    summary: `Updated role ${input.name}`,
   });
   return updated;
 }
