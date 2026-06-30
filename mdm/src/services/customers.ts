@@ -24,6 +24,17 @@ export interface CustomerInput {
   stateProvince?: string;
   postalCode?: string;
   countryCode?: string;
+  // Account-master extensions (territory-assignment MDM).
+  msSalesAccountId?: string;
+  crmAccountId?: string;
+  parentAccountId?: string;
+  globalParentAccountId?: string;
+  verticalCode?: string;
+  subVerticalCode?: string;
+  verticalCategoryCode?: string;
+  subSegmentCode?: string;
+  region?: string;
+  prefecture?: string;
   sourceSystem?: string;
 }
 
@@ -51,6 +62,16 @@ const CUSTOMER_FIELDS = [
   'stateProvince',
   'postalCode',
   'countryCode',
+  'msSalesAccountId',
+  'crmAccountId',
+  'parentAccountId',
+  'globalParentAccountId',
+  'verticalCode',
+  'subVerticalCode',
+  'verticalCategoryCode',
+  'subSegmentCode',
+  'region',
+  'prefecture',
   'status',
   'isGolden',
   'qualityScore',
