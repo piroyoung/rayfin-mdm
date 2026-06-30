@@ -60,7 +60,17 @@ const EMPTY: TerritoryAssignmentInput = {
   fiscalYearId: '',
 };
 
+function snapshot(r: TerritoryAccountAssignment): TerritoryAssignmentInput {
+  return {
+    accountId: r.accountId,
+    territoryId: r.territoryId,
+    fiscalYearId: r.fiscalYearId,
+    assignmentType: r.assignmentType,
+  };
+}
+
 function CreateForm({
+  initial = EMPTY,
   accounts,
   territories,
   fiscalYears,
@@ -68,6 +78,7 @@ function CreateForm({
   onCancel,
   onSubmit,
 }: {
+  initial?: TerritoryAssignmentInput;
   accounts: Account[];
   territories: Territory[];
   fiscalYears: FiscalYear[];
@@ -75,7 +86,7 @@ function CreateForm({
   onCancel: () => void;
   onSubmit: (input: TerritoryAssignmentInput) => void;
 }) {
-  const [form, setForm] = useState<TerritoryAssignmentInput>(EMPTY);
+  const [form, setForm] = useState<TerritoryAssignmentInput>(initial);
   const set = (patch: Partial<TerritoryAssignmentInput>) =>
     setForm((f) => ({ ...f, ...patch }));
   const valid = form.accountId && form.territoryId && form.fiscalYearId;
@@ -165,6 +176,7 @@ export function TerritoryAccountAssignmentsPage() {
   const fiscalYears = useMemo(() => data?.fiscalYears ?? [], [data]);
 
   const [creating, setCreating] = useState(false);
+  const [seed, setSeed] = useState<TerritoryAssignmentInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<TerritoryAccountAssignment | null>(
@@ -201,6 +213,7 @@ export function TerritoryAccountAssignmentsPage() {
       await createTerritoryAssignment(input);
       toast('Placement created.', 'success');
       setCreating(false);
+      setSeed(null);
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Create failed.', 'error');
@@ -249,7 +262,10 @@ export function TerritoryAccountAssignmentsPage() {
         subtitle="Which territory an account sits in for a fiscal year. One row per account / FY; history is preserved."
         actions={
           <Tooltip label="新しいテリトリ配置を作成します" side="bottom">
-            <Button variant="primary" onClick={() => setCreating(true)}>
+            <Button variant="primary" onClick={() => {
+              setSeed(null);
+              setCreating(true);
+            }}>
               + New placement
             </Button>
           </Tooltip>
@@ -329,6 +345,18 @@ export function TerritoryAccountAssignmentsPage() {
                               {a.label}
                             </Button>
                           ))}
+                          <Tooltip label="この行をコピーして新規作成します（年度を変えて再利用）">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setSeed(snapshot(row));
+                                setCreating(true);
+                              }}
+                            >
+                              Copy
+                            </Button>
+                          </Tooltip>
                           <Tooltip label="この配置を削除します">
                             <Button
                               size="sm"
@@ -351,16 +379,23 @@ export function TerritoryAccountAssignmentsPage() {
 
       <Modal
         open={creating}
-        onClose={() => setCreating(false)}
-        title="New territory placement"
+        onClose={() => {
+          setCreating(false);
+          setSeed(null);
+        }}
+        title={seed ? 'Copy placement' : 'New territory placement'}
         size="lg"
       >
         <CreateForm
+          initial={seed ?? EMPTY}
           accounts={accounts}
           territories={territories}
           fiscalYears={fiscalYears}
           saving={saving}
-          onCancel={() => setCreating(false)}
+          onCancel={() => {
+            setCreating(false);
+            setSeed(null);
+          }}
           onSubmit={handleCreate}
         />
       </Modal>

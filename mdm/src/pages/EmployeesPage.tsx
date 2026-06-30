@@ -221,6 +221,7 @@ export function EmployeesPage() {
   );
   const [editing, setEditing] = useState<Employee | null>(null);
   const [creating, setCreating] = useState(false);
+  const [seed, setSeed] = useState<EmployeeInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -259,6 +260,7 @@ export function EmployeesPage() {
       }
       setEditing(null);
       setCreating(false);
+      setSeed(null);
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed.', 'error');
@@ -291,6 +293,7 @@ export function EmployeesPage() {
               variant="primary"
               onClick={() => {
                 setEditing(null);
+                setSeed(null);
                 setCreating(true);
               }}
             >
@@ -406,11 +409,25 @@ export function EmployeesPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
+                              setSeed(null);
                               setCreating(false);
                               setEditing(e);
                             }}
                           >
                             Edit
+                          </Button>
+                        </Tooltip>
+                        <Tooltip label="この行をコピーして新しい従業員を作成します">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditing(null);
+                              setSeed({ ...snapshot(e), entraObjectId: undefined });
+                              setCreating(true);
+                            }}
+                          >
+                            Copy
                           </Button>
                         </Tooltip>
                         <Tooltip
@@ -444,17 +461,25 @@ export function EmployeesPage() {
         onClose={() => {
           setCreating(false);
           setEditing(null);
+          setSeed(null);
         }}
-        title={editing ? `Edit ${editing.displayName}` : 'New employee'}
+        title={
+          editing
+            ? `Edit ${editing.displayName}`
+            : seed
+              ? 'New employee (copy)'
+              : 'New employee'
+        }
         size="lg"
       >
         <EmployeeForm
-          initial={editing ? snapshot(editing) : EMPTY}
+          initial={editing ? snapshot(editing) : (seed ?? EMPTY)}
           saving={saving}
           roles={roles}
           onCancel={() => {
             setCreating(false);
             setEditing(null);
+            setSeed(null);
           }}
           onSubmit={handleSave}
         />

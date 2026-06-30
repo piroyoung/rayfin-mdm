@@ -197,6 +197,7 @@ export function TerritoriesPage() {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Territory | null>(null);
   const [creating, setCreating] = useState(false);
+  const [seed, setSeed] = useState<TerritoryInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -230,6 +231,7 @@ export function TerritoriesPage() {
       }
       setEditing(null);
       setCreating(false);
+      setSeed(null);
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed.', 'error');
@@ -262,6 +264,7 @@ export function TerritoriesPage() {
               variant="primary"
               onClick={() => {
                 setEditing(null);
+                setSeed(null);
                 setCreating(true);
               }}
             >
@@ -339,11 +342,25 @@ export function TerritoriesPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
+                              setSeed(null);
                               setCreating(false);
                               setEditing(t);
                             }}
                           >
                             Edit
+                          </Button>
+                        </Tooltip>
+                        <Tooltip label="この行をコピーして新しいテリトリーを作成します">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditing(null);
+                              setSeed({ ...snapshot(t), territoryCode: '' });
+                              setCreating(true);
+                            }}
+                          >
+                            Copy
                           </Button>
                         </Tooltip>
                         <Tooltip
@@ -377,12 +394,19 @@ export function TerritoriesPage() {
         onClose={() => {
           setCreating(false);
           setEditing(null);
+          setSeed(null);
         }}
-        title={editing ? `Edit ${editing.territoryName}` : 'New territory'}
+        title={
+          editing
+            ? `Edit ${editing.territoryName}`
+            : seed
+              ? 'New territory (copy)'
+              : 'New territory'
+        }
         size="lg"
       >
         <TerritoryForm
-          initial={editing ? snapshot(editing) : EMPTY}
+          initial={editing ? snapshot(editing) : (seed ?? EMPTY)}
           selfId={editing?.id}
           territories={territories}
           fiscalYears={fiscalYears}
@@ -390,6 +414,7 @@ export function TerritoriesPage() {
           onCancel={() => {
             setCreating(false);
             setEditing(null);
+            setSeed(null);
           }}
           onSubmit={handleSave}
         />

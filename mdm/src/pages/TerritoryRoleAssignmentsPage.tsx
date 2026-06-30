@@ -64,7 +64,17 @@ const EMPTY: TerritoryRoleAssignmentInput = {
   roleTypeCode: '',
 };
 
+function snapshot(r: TerritoryRoleAssignment): TerritoryRoleAssignmentInput {
+  return {
+    territoryId: r.territoryId,
+    employeeId: r.employeeId,
+    fiscalYearId: r.fiscalYearId,
+    roleTypeCode: r.roleTypeCode,
+  };
+}
+
 function CreateForm({
+  initial = EMPTY,
   territories,
   employees,
   fiscalYears,
@@ -73,6 +83,7 @@ function CreateForm({
   onCancel,
   onSubmit,
 }: {
+  initial?: TerritoryRoleAssignmentInput;
   territories: Territory[];
   employees: Employee[];
   fiscalYears: FiscalYear[];
@@ -81,7 +92,7 @@ function CreateForm({
   onCancel: () => void;
   onSubmit: (input: TerritoryRoleAssignmentInput) => void;
 }) {
-  const [form, setForm] = useState<TerritoryRoleAssignmentInput>(EMPTY);
+  const [form, setForm] = useState<TerritoryRoleAssignmentInput>(initial);
   const set = (patch: Partial<TerritoryRoleAssignmentInput>) =>
     setForm((f) => ({ ...f, ...patch }));
   const valid =
@@ -184,6 +195,7 @@ export function TerritoryRoleAssignmentsPage() {
   const roles = useMemo(() => data?.roles ?? [], [data]);
 
   const [creating, setCreating] = useState(false);
+  const [seed, setSeed] = useState<TerritoryRoleAssignmentInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<TerritoryRoleAssignment | null>(null);
@@ -223,6 +235,7 @@ export function TerritoryRoleAssignmentsPage() {
       await createTerritoryRoleAssignment(input);
       toast('Seat created.', 'success');
       setCreating(false);
+      setSeed(null);
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Create failed.', 'error');
@@ -271,7 +284,10 @@ export function TerritoryRoleAssignmentsPage() {
         subtitle="Who staffs each role seat in a territory, per fiscal year. One seat per territory / role / FY."
         actions={
           <Tooltip label="新しいロールシートを作成します" side="bottom">
-            <Button variant="primary" onClick={() => setCreating(true)}>
+            <Button variant="primary" onClick={() => {
+              setSeed(null);
+              setCreating(true);
+            }}>
               + New seat
             </Button>
           </Tooltip>
@@ -355,6 +371,18 @@ export function TerritoryRoleAssignmentsPage() {
                               {a.label}
                             </Button>
                           ))}
+                          <Tooltip label="この行をコピーして新規作成します（年度を変えて再利用）">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setSeed(snapshot(row));
+                                setCreating(true);
+                              }}
+                            >
+                              Copy
+                            </Button>
+                          </Tooltip>
                           <Tooltip label="このシートを空席にします">
                             <Button
                               size="sm"
@@ -377,17 +405,24 @@ export function TerritoryRoleAssignmentsPage() {
 
       <Modal
         open={creating}
-        onClose={() => setCreating(false)}
-        title="New role seat"
+        onClose={() => {
+          setCreating(false);
+          setSeed(null);
+        }}
+        title={seed ? 'Copy role seat' : 'New role seat'}
         size="lg"
       >
         <CreateForm
+          initial={seed ?? EMPTY}
           territories={territories}
           employees={employees}
           fiscalYears={fiscalYears}
           roles={roles}
           saving={saving}
-          onCancel={() => setCreating(false)}
+          onCancel={() => {
+            setCreating(false);
+            setSeed(null);
+          }}
           onSubmit={handleCreate}
         />
       </Modal>
