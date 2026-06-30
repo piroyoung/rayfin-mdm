@@ -16,6 +16,7 @@ type IconName =
   | 'employees'
   | 'territories'
   | 'assignments'
+  | 'ingest'
   | 'dataQuality'
   | 'stewardship'
   | 'reference'
@@ -37,6 +38,8 @@ const ICONS: Record<IconName, string> = {
     'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
   dataQuality:
     'M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11',
+  ingest:
+    'M12 3v12m0 0l-4-4m4 4l4-4M5 21h14a2 2 0 002-2v-2a2 2 0 00-2-2h-2',
   stewardship: 'M9 12l2 2 4-4m-6 8a9 9 0 110-18 9 9 0 010 18z',
   reference:
     'M4 6h16M4 12h16M4 18h10M19 16l2 2-2 2',
@@ -71,6 +74,7 @@ const NAV: Array<{ to: string; label: string; icon: IconName; end?: boolean }> =
     { to: '/employees', label: 'Employees', icon: 'employees' },
     { to: '/territories', label: 'Territories', icon: 'territories' },
     { to: '/assignments', label: 'Assignments', icon: 'assignments' },
+    { to: '/ingest', label: 'Ingest', icon: 'ingest' },
     { to: '/data-quality', label: 'Data Quality', icon: 'dataQuality' },
     { to: '/stewardship', label: 'Stewardship', icon: 'stewardship' },
     { to: '/reference', label: 'Reference Data', icon: 'reference' },
