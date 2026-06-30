@@ -27,6 +27,13 @@ const DOMAIN_LABELS: Record<AuditDomain, string> = {
   product: 'Product',
   reference: 'Reference',
   change_request: 'Change request',
+  employee: 'Employee',
+  territory: 'Territory',
+  fiscal_year: 'Fiscal year',
+  role_type: 'Role type',
+  assignment: 'Assignment',
+  source_xref: 'Source xref',
+  data_quality: 'Data quality',
 };
 
 export function AuditPage() {
@@ -74,10 +81,11 @@ export function AuditPage() {
             }
           >
             <option value="all">All domains</option>
-            <option value="customer">Customer</option>
-            <option value="product">Product</option>
-            <option value="reference">Reference</option>
-            <option value="change_request">Change request</option>
+            {(Object.keys(DOMAIN_LABELS) as AuditDomain[]).map((d) => (
+              <option key={d} value={d}>
+                {DOMAIN_LABELS[d]}
+              </option>
+            ))}
           </Select>
           <Select
             className="w-40"

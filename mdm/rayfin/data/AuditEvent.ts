@@ -16,8 +16,31 @@ import {
 export class AuditEvent {
   @uuid() id!: string;
 
-  @set('customer', 'product', 'reference', 'change_request')
-  domain!: 'customer' | 'product' | 'reference' | 'change_request';
+  @set(
+    'customer',
+    'product',
+    'reference',
+    'change_request',
+    'employee',
+    'territory',
+    'fiscal_year',
+    'role_type',
+    'assignment',
+    'source_xref',
+    'data_quality'
+  )
+  domain!:
+    | 'customer'
+    | 'product'
+    | 'reference'
+    | 'change_request'
+    | 'employee'
+    | 'territory'
+    | 'fiscal_year'
+    | 'role_type'
+    | 'assignment'
+    | 'source_xref'
+    | 'data_quality';
 
   @set(
     'create',

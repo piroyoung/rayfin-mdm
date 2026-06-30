@@ -43,6 +43,27 @@ export class Customer {
   @text({ max: 20, optional: true }) postalCode?: string;
   @text({ max: 2, optional: true }) countryCode?: string;
 
+  // ── Account-master extensions (territory-assignment MDM) ──
+  // Territory, fiscal year and ownership are intentionally NOT stored here —
+  // they live in the assignment bridges so they can vary by year and be
+  // historised. External IDs are mirrored in SourceXref, never used as PKs.
+
+  /** External sales account id (MSSalesAccountID). */
+  @text({ max: 128, optional: true }) msSalesAccountId?: string;
+  /** External CRM account id. */
+  @text({ max: 128, optional: true }) crmAccountId?: string;
+
+  @uuid({ optional: true }) parentAccountId?: string;
+  @uuid({ optional: true }) globalParentAccountId?: string;
+
+  @text({ max: 64, optional: true }) verticalCode?: string;
+  @text({ max: 64, optional: true }) subVerticalCode?: string;
+  @text({ max: 64, optional: true }) verticalCategoryCode?: string;
+  @text({ max: 64, optional: true }) subSegmentCode?: string;
+
+  @text({ max: 64, optional: true }) region?: string;
+  @text({ max: 120, optional: true }) prefecture?: string;
+
   /** Stewardship lifecycle / golden-record state. */
   @set('draft', 'pending_approval', 'approved', 'rejected', 'archived', 'merged')
   status!:
