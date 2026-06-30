@@ -20,7 +20,12 @@ import {
 export class ChangeRequest {
   @uuid() id!: string;
 
-  @set('account') domain!: 'account';
+  /**
+   * Target master domain. Stored as free text (not a narrow `@set`) so the
+   * polymorphic workflow can span future master domains without a destructive
+   * column migration. Today the only value written is 'account'.
+   */
+  @text({ max: 64 }) domain!: 'account';
 
   @set('create', 'update', 'merge', 'archive')
   changeType!: 'create' | 'update' | 'merge' | 'archive';
