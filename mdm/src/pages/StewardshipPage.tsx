@@ -7,11 +7,19 @@ import {
   rejectChangeRequest,
 } from '@/services/stewardship';
 import {
+  listEmployeeAssignments,
+  setEmployeeAssignmentStatus,
+} from '@/services/assignments';
+import { listCustomers } from '@/services/customers';
+import { listEmployees } from '@/services/employees';
+import { listRoleTypes } from '@/services/roleTypes';
+import {
   CHANGE_STATUS_META,
   CHANGE_TYPE_META,
   labelledMeta,
   MASTER_DOMAIN_META,
   tonedMeta,
+  type AccountEmployeeAssignment,
   type ChangeRequest,
   type ChangeStatus,
 } from '@/domain/types';
@@ -39,6 +47,110 @@ function prettyPayload(payload?: string): string | null {
   } catch {
     return payload;
   }
+}
+
+interface ApprovalRefs {
+  submitted: AccountEmployeeAssignment[];
+  accountName: (id: string) => string;
+  employeeName: (id: string) => string;
+  roleName: (code: string) => string;
+}
+
+/**
+ * Assignment-approval queue. Surfaces SUBMITTED employee assignments awaiting a
+ * steward decision and drives the same state machine used on the Assignments
+ * page (submitted → approved, or sent back to draft).
+ */
+function AssignmentApprovals() {
+  const toast = useToast();
+  const { data, loading, reload } = useAsyncData<ApprovalRefs>(async () => {
+    const [assignments, customers, employees, roles] = await Promise.all([
+      listEmployeeAssignments(),
+      listCustomers(),
+      listEmployees(),
+      listRoleTypes(),
+    ]);
+    const accounts = new Map(customers.map((c) => [c.id, c.name]));
+    const emps = new Map(employees.map((e) => [e.id, e]));
+    const roleMap = new Map(roles.map((r) => [r.code, r.name]));
+    return {
+      submitted: assignments.filter((a) => a.assignmentStatus === 'submitted'),
+      accountName: (id) => accounts.get(id) ?? id,
+      employeeName: (id) => {
+        const e = emps.get(id);
+        if (!e) return id;
+        return e.alias ? `${e.displayName} (${e.alias})` : e.displayName;
+      },
+      roleName: (code) => roleMap.get(code) ?? code,
+    };
+  });
+
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function decide(
+    record: AccountEmployeeAssignment,
+    to: 'approved' | 'draft',
+    ok: string
+  ) {
+    setBusyId(record.id);
+    try {
+      await setEmployeeAssignmentStatus(record, to);
+      toast(ok, 'success');
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Action failed.', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (loading || !data || data.submitted.length === 0) return null;
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-gray-700">
+          Assignment approvals
+        </p>
+        <Badge tone="amber">{data.submitted.length} submitted</Badge>
+      </div>
+      <ul className="mt-3 divide-y divide-gray-50">
+        {data.submitted.map((a) => (
+          <li
+            key={a.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm"
+          >
+            <span className="font-medium text-gray-900">
+              {data.accountName(a.accountId)}
+            </span>
+            <Badge tone="blue">{data.roleName(a.roleTypeCode)}</Badge>
+            <span className="text-gray-600">{data.employeeName(a.employeeId)}</span>
+            {a.isPrimary && <span className="text-amber-500" title="Primary">★</span>}
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="primary"
+                loading={busyId === a.id}
+                onClick={() =>
+                  decide(a, 'approved', 'Assignment approved.')
+                }
+              >
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={busyId === a.id}
+                onClick={() => decide(a, 'draft', 'Sent back to draft.')}
+              >
+                Send back
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
 }
 
 export function StewardshipPage() {
@@ -104,6 +216,8 @@ export function StewardshipPage() {
           </Select>
         }
       />
+
+      <AssignmentApprovals />
 
       {loading ? (
         <div className="flex justify-center py-16">

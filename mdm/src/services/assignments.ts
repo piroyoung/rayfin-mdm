@@ -11,6 +11,8 @@ import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
 import { planPrimaryToggle, type PrimaryScopeRow } from '@/domain/assignments';
+import { assertTransition } from '@/domain/assignmentWorkflow';
+import { planReassignment, publishedRows } from '@/domain/assignmentViews';
 import type {
   AccountEmployeeAssignment,
   AccountTerritoryAssignment,
@@ -67,6 +69,13 @@ export async function listEmployeeAssignments(): Promise<
       .select(EMPLOYEE_ASSIGNMENT_FIELDS)
       .execute()),
   ];
+}
+
+/** Approved/active current rows only — the downstream-publishable set. */
+export async function listPublishedEmployeeAssignments(): Promise<
+  AccountEmployeeAssignment[]
+> {
+  return publishedRows(await listEmployeeAssignments());
 }
 
 export function listEmployeeAssignmentsForAccount(
@@ -147,6 +156,7 @@ export async function setEmployeeAssignmentStatus(
   status: AssignmentStatus,
   note?: string
 ): Promise<AccountEmployeeAssignment> {
+  assertTransition(record.assignmentStatus, status);
   const updated = await employeeAssignments().update(
     { id: record.id },
     {
@@ -171,6 +181,60 @@ export async function setEmployeeAssignmentStatus(
     details: note,
   });
   return updated;
+}
+
+/**
+ * SCD-Type-2 owner swap: end-date the current row and open a fresh current row
+ * for `newEmployeeId` in the same account/role/FY/territory scope. History is
+ * preserved (the old row stays, flagged `currentFlag=false`) so the invariant
+ * "exactly one current row per scope" holds.
+ */
+export async function reassignEmployeeAssignment(
+  current: AccountEmployeeAssignment,
+  newEmployeeId: string,
+  note?: string
+): Promise<AccountEmployeeAssignment> {
+  if (newEmployeeId === current.employeeId) {
+    throw new Error('The new owner is the same as the current owner.');
+  }
+  const now = new Date();
+  const plan = planReassignment(current, newEmployeeId, now);
+
+  await employeeAssignments().update(
+    { id: plan.retireId },
+    { ...plan.retirePatch, updatedBy: actorId(), updatedAt: now }
+  );
+
+  const created = await employeeAssignments().create({
+    accountId: plan.newRow.accountId,
+    employeeId: plan.newRow.employeeId,
+    fiscalYearId: plan.newRow.fiscalYearId,
+    territoryId: plan.newRow.territoryId,
+    roleTypeCode: plan.newRow.roleTypeCode,
+    isPrimary: plan.newRow.isPrimary,
+    assignmentStatus: 'draft',
+    startDate: plan.newRow.startDate,
+    currentFlag: true,
+    createdBy: actorId(),
+    updatedBy: actorId(),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await logAudit({
+    domain: 'assignment',
+    action: 'status_change',
+    recordId: created.id,
+    recordLabel: `${current.roleTypeCode} assignment`,
+    summary: `Reassigned ${current.roleTypeCode} owner (history preserved)`,
+    details: {
+      retiredAssignmentId: plan.retireId,
+      previousEmployeeId: current.employeeId,
+      newEmployeeId,
+      note,
+    },
+  });
+  return created;
 }
 
 /**
@@ -306,6 +370,7 @@ export async function setTerritoryAssignmentStatus(
   status: AssignmentStatus,
   note?: string
 ): Promise<AccountTerritoryAssignment> {
+  assertTransition(record.assignmentStatus, status);
   const updated = await territoryAssignments().update(
     { id: record.id },
     {
