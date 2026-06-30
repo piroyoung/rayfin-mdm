@@ -20,6 +20,7 @@ import {
 } from '@/domain/types';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { fmtRelative } from '@/lib/format';
+import { MyIdentityCard } from '@/components/MyIdentityCard';
 import {
   Badge,
   Card,
@@ -110,6 +111,8 @@ export function DashboardPage() {
         title="Master Data Overview"
         subtitle="Golden records, data quality and stewardship across your domains."
       />
+
+      <MyIdentityCard />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard

@@ -12,6 +12,7 @@ export interface EmployeeInput {
   alias?: string;
   upn?: string;
   email?: string;
+  entraObjectId?: string;
   displayName: string;
   localName?: string;
   jobTitle?: string;
@@ -33,6 +34,7 @@ const EMPLOYEE_FIELDS = [
   'alias',
   'upn',
   'email',
+  'entraObjectId',
   'displayName',
   'localName',
   'jobTitle',
@@ -52,6 +54,25 @@ const EMPLOYEE_FIELDS = [
 
 function label(e: { displayName: string; alias?: string }): string {
   return e.alias ? `${e.displayName} (${e.alias})` : e.displayName;
+}
+
+/** Project a stored row back to its steward-editable input shape. */
+export function toEmployeeInput(e: Employee): EmployeeInput {
+  return {
+    personnelNumber: e.personnelNumber,
+    alias: e.alias,
+    upn: e.upn,
+    email: e.email,
+    entraObjectId: e.entraObjectId,
+    displayName: e.displayName,
+    localName: e.localName,
+    jobTitle: e.jobTitle,
+    roleTypeCode: e.roleTypeCode,
+    countryCode: e.countryCode,
+    officeLocation: e.officeLocation,
+    employmentStatus: e.employmentStatus,
+    isActive: e.isActive,
+  };
 }
 
 export async function listEmployees(): Promise<Employee[]> {

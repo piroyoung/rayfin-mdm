@@ -1,6 +1,6 @@
 /** App shell: sidebar navigation, header, and current-actor wiring. */
-import { useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '@/hooks/AuthContext';
 import { setCurrentActor } from '@/services/session';
@@ -20,7 +20,9 @@ type IconName =
   | 'dataQuality'
   | 'stewardship'
   | 'reference'
-  | 'audit';
+  | 'audit'
+  | 'role'
+  | 'tables';
 
 const ICONS: Record<IconName, string> = {
   guide:
@@ -45,6 +47,8 @@ const ICONS: Record<IconName, string> = {
     'M4 6h16M4 12h16M4 18h10M19 16l2 2-2 2',
   audit:
     'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  role: 'M12 3l7 4v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V7l7-4z',
+  tables: 'M3 4h18v4H3zM3 10h18v4H3zM3 16h18v4H3z',
 };
 
 function Icon({ name }: { name: IconName }) {
@@ -65,21 +69,216 @@ function Icon({ name }: { name: IconName }) {
   );
 }
 
-const NAV: Array<{ to: string; label: string; icon: IconName; end?: boolean }> =
-  [
-    { to: '/guide', label: 'MDMとは？', icon: 'guide' },
-    { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
-    { to: '/accounts', label: 'Accounts', icon: 'accounts' },
-    { to: '/employees', label: 'Employees', icon: 'employees' },
-    { to: '/territories', label: 'Territories', icon: 'territories' },
-    { to: '/roster', label: 'Territory Roster', icon: 'roster' },
-    { to: '/assignments', label: 'Assignments', icon: 'assignments' },
-    { to: '/ingest', label: 'Ingest', icon: 'ingest' },
-    { to: '/data-quality', label: 'Data Quality', icon: 'dataQuality' },
-    { to: '/stewardship', label: 'Stewardship', icon: 'stewardship' },
-    { to: '/reference', label: 'Reference Data', icon: 'reference' },
-    { to: '/audit', label: 'Audit Log', icon: 'audit' },
-  ];
+interface NavLeaf {
+  to: string;
+  label: string;
+  icon: IconName;
+  end?: boolean;
+}
+interface NavGroup {
+  group: string;
+  icon: IconName;
+  children: NavLeaf[];
+}
+type NavEntry = NavLeaf | NavGroup;
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return 'group' in entry;
+}
+
+/**
+ * Workflow pages stay at the top level; the master tables (one page per
+ * Rayfin entity, labelled with the table name) are tucked into a single
+ * collapsible group so the sidebar stays scannable.
+ */
+const NAV: NavEntry[] = [
+  { to: '/guide', label: 'MDMとは？', icon: 'guide' },
+  { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
+  { to: '/roster', label: 'Territory Roster', icon: 'roster' },
+  { to: '/assignments', label: 'Assignments', icon: 'assignments' },
+  {
+    group: 'Master Tables',
+    icon: 'tables',
+    children: [
+      { to: '/roles', label: 'Role', icon: 'role' },
+      { to: '/accounts', label: 'Account', icon: 'accounts' },
+      { to: '/employees', label: 'Employee', icon: 'employees' },
+      { to: '/territories', label: 'Territory', icon: 'territories' },
+      {
+        to: '/territory-account-assignments',
+        label: 'TerritoryAccountAssignment',
+        icon: 'assignments',
+      },
+      {
+        to: '/territory-role-assignments',
+        label: 'TerritoryRoleAssignment',
+        icon: 'roster',
+      },
+    ],
+  },
+  { to: '/ingest', label: 'Ingest', icon: 'ingest' },
+  { to: '/data-quality', label: 'Data Quality', icon: 'dataQuality' },
+  { to: '/stewardship', label: 'Stewardship', icon: 'stewardship' },
+  { to: '/reference', label: 'Reference Data', icon: 'reference' },
+  { to: '/audit', label: 'Audit Log', icon: 'audit' },
+];
+
+/** True when one of a group's children is the active route. */
+function useChildActive(children: NavLeaf[]): boolean {
+  const { pathname } = useLocation();
+  return children.some(
+    (c) => pathname === c.to || pathname.startsWith(`${c.to}/`)
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn('transition-transform', open && 'rotate-90')}
+      aria-hidden
+    >
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function NavLeafLink({ item, nested }: { item: NavLeaf; nested?: boolean }) {
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      className={({ isActive }) =>
+        cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+          nested && 'pl-9 text-[13px]',
+          isActive
+            ? 'bg-indigo-50 text-indigo-700'
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        )
+      }
+    >
+      <Icon name={item.icon} />
+      <span
+        className={nested ? 'min-w-0 leading-tight [overflow-wrap:anywhere]' : undefined}
+      >
+        {item.label}
+      </span>
+    </NavLink>
+  );
+}
+
+function NavGroupSection({ entry }: { entry: NavGroup }) {
+  const childActive = useChildActive(entry.children);
+  const [open, setOpen] = useState(childActive);
+  useEffect(() => {
+    if (childActive) setOpen(true);
+  }, [childActive]);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+          childActive
+            ? 'text-indigo-700'
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        )}
+      >
+        <Icon name={entry.icon} />
+        <span className="flex-1 text-left">{entry.group}</span>
+        <Chevron open={open} />
+      </button>
+      {open && (
+        <div className="mt-1 space-y-1">
+          {entry.children.map((c) => (
+            <NavLeafLink key={c.to} item={c} nested />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobilePill({
+  to,
+  end,
+  label,
+}: {
+  to: string;
+  end?: boolean;
+  label: string;
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        cn(
+          'shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium',
+          isActive
+            ? 'bg-indigo-50 text-indigo-700'
+            : 'text-gray-600 hover:bg-gray-100'
+        )
+      }
+    >
+      {label}
+    </NavLink>
+  );
+}
+
+function MobileNav() {
+  const leaves = NAV.filter((e): e is NavLeaf => !isGroup(e));
+  const group = NAV.find(isGroup);
+  const childActive = useChildActive(group?.children ?? []);
+  const [open, setOpen] = useState(childActive);
+  useEffect(() => {
+    if (childActive) setOpen(true);
+  }, [childActive]);
+
+  return (
+    <nav className="flex flex-col gap-2 border-b border-gray-200 bg-white px-2 py-2 md:hidden">
+      <div className="flex gap-1 overflow-x-auto">
+        {leaves.map((item) => (
+          <MobilePill key={item.to} to={item.to} end={item.end} label={item.label} />
+        ))}
+        {group && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium',
+              childActive
+                ? 'bg-indigo-50 text-indigo-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            )}
+          >
+            {group.group}
+            <Chevron open={open} />
+          </button>
+        )}
+      </div>
+      {group && open && (
+        <div className="flex flex-wrap gap-1">
+          {group.children.map((c) => (
+            <MobilePill key={c.to} to={c.to} label={c.label} />
+          ))}
+        </div>
+      )}
+    </nav>
+  );
+}
 
 export function AppLayout() {
   const { user, signOut } = useAuth();
@@ -103,24 +302,13 @@ export function AppLayout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-2">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                )
-              }
-            >
-              <Icon name={item.icon} />
-              {item.label}
-            </NavLink>
-          ))}
+          {NAV.map((entry) =>
+            isGroup(entry) ? (
+              <NavGroupSection key={entry.group} entry={entry} />
+            ) : (
+              <NavLeafLink key={entry.to} item={entry} />
+            )
+          )}
         </nav>
 
         <div className="border-t border-gray-100 p-3">
@@ -170,25 +358,7 @@ export function AppLayout() {
         </header>
 
         {/* Mobile nav */}
-        <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-2 py-2 md:hidden">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                cn(
-                  'shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium',
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-700'
-                    : 'text-gray-600 hover:bg-gray-100'
-                )
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <MobileNav />
 
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />

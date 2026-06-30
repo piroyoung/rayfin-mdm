@@ -10,6 +10,8 @@ import {
   type EmployeeInput,
 } from '@/services/employees';
 import { listRoles } from '@/services/roles';
+import { employeeInputFromUser } from '@/services/identity';
+import { useAuth } from '@/hooks/AuthContext';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/hooks/useToast';
 import { fmtRelative } from '@/lib/format';
@@ -36,6 +38,7 @@ function snapshot(e: Employee): EmployeeInput {
     alias: e.alias,
     upn: e.upn,
     email: e.email,
+    entraObjectId: e.entraObjectId,
     displayName: e.displayName,
     localName: e.localName,
     jobTitle: e.jobTitle,
@@ -61,6 +64,7 @@ function EmployeeForm({
   onSubmit: (input: EmployeeInput) => void;
 }) {
   const [form, setForm] = useState<EmployeeInput>(initial);
+  const { user } = useAuth();
   const set = (patch: Partial<EmployeeInput>) =>
     setForm((f) => ({ ...f, ...patch }));
   const valid = (form.displayName ?? '').trim() !== '';
@@ -72,6 +76,23 @@ function EmployeeForm({
         if (valid) onSubmit(form);
       }}
     >
+      {user && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-indigo-50/60 px-3 py-2">
+          <p className="text-xs text-indigo-700">
+            Every employee is a tenant user. Prefill this form from the account
+            you&apos;re signed in as.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => set(employeeInputFromUser(user))}
+          >
+            Use my account
+          </Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Display name" required>
           <Input
@@ -112,6 +133,18 @@ function EmployeeForm({
             type="email"
             value={form.email ?? ''}
             onChange={(e) => set({ email: e.target.value })}
+          />
+        </Field>
+        <Field
+          label="Entra object ID"
+          hint="Durable tenant identity (oid). Set via “Use my account”."
+        >
+          <Input
+            value={form.entraObjectId ?? ''}
+            onChange={(e) =>
+              set({ entraObjectId: e.target.value || undefined })
+            }
+            placeholder="—"
           />
         </Field>
         <Field label="Job title">
