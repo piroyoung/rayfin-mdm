@@ -12,6 +12,7 @@ export interface RoleInput {
   orgUnit?: string;
   solutionArea?: string;
   subArea?: string;
+  roleFamily?: string;
   isAccountAssignable?: boolean;
   isTerritoryAssignable?: boolean;
   sortOrder?: number;
@@ -31,6 +32,7 @@ const ROLE_FIELDS = [
   'orgUnit',
   'solutionArea',
   'subArea',
+  'roleFamily',
   'isAccountAssignable',
   'isTerritoryAssignable',
   'sortOrder',
@@ -98,6 +100,7 @@ export async function createRole(input: RoleInput): Promise<Role> {
     orgUnit: input.orgUnit,
     solutionArea: input.solutionArea,
     subArea: input.subArea,
+    roleFamily: input.roleFamily,
     isAccountAssignable: input.isAccountAssignable ?? true,
     isTerritoryAssignable: input.isTerritoryAssignable ?? false,
     sortOrder: input.sortOrder,
@@ -124,6 +127,7 @@ export async function updateRole(id: string, input: RoleInput): Promise<Role> {
       orgUnit: input.orgUnit,
       solutionArea: input.solutionArea,
       subArea: input.subArea,
+      roleFamily: input.roleFamily,
       isAccountAssignable: input.isAccountAssignable ?? true,
       isTerritoryAssignable: input.isTerritoryAssignable ?? false,
       sortOrder: input.sortOrder,

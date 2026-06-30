@@ -84,6 +84,14 @@ const REFERENCE_SETS: Record<string, Array<[string, string]>> = {
     ['dynamics', 'Dynamics 365'],
     ['m365', 'Microsoft 365'],
   ],
+  role_family: [
+    ['sales', 'Sales'],
+    ['technical', 'Technical'],
+    ['customer_success', 'Customer Success'],
+    ['specialist', 'Specialist'],
+    ['partner', 'Partner'],
+    ['leadership', 'Leadership'],
+  ],
   issue_type: [
     ['MISSING_ACCOUNT_ID', 'Missing account ID'],
     ['DUPLICATE_ACCOUNT', 'Duplicate account candidate'],
