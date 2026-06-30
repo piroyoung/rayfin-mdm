@@ -18,9 +18,9 @@ import {
  * It is no longer entered by hand — the UI presents `name` as the role's
  * identity and the service auto-generates a unique `code` from it on create.
  *
- * The organizational dimensions (`orgUnit`, `solutionArea`, `subArea`) describe
- * where a role sits in the org/coverage taxonomy. They are open governed
- * buckets validated against ReferenceValue, not enums.
+ * The organizational dimensions (`orgUnit`, `solutionArea`, `subArea`,
+ * `roleFamily`) describe where a role sits in the org/coverage taxonomy. They
+ * are open governed buckets validated against ReferenceValue, not enums.
  */
 @entity()
 @authenticated('*')
@@ -40,6 +40,8 @@ export class Role {
   @text({ max: 128, optional: true }) solutionArea?: string;
   /** Finer sub-area within the solution area. */
   @text({ max: 128, optional: true }) subArea?: string;
+  /** Role family grouping (e.g. 'Sales', 'Technical', 'Customer Success'). */
+  @text({ max: 128, optional: true }) roleFamily?: string;
 
   /** Can this role be attached to an account-level assignment? */
   @boolean() isAccountAssignable!: boolean;

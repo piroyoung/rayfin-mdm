@@ -46,6 +46,7 @@ function snapshot(r: Role): RoleInput {
     orgUnit: r.orgUnit,
     solutionArea: r.solutionArea,
     subArea: r.subArea,
+    roleFamily: r.roleFamily,
     isAccountAssignable: r.isAccountAssignable,
     isTerritoryAssignable: r.isTerritoryAssignable,
     sortOrder: r.sortOrder,
@@ -101,6 +102,12 @@ function RoleForm({
           <Input
             value={form.subArea ?? ''}
             onChange={(e) => set({ subArea: e.target.value || undefined })}
+          />
+        </Field>
+        <Field label="Role family" hint="Sales, Technical, Customer Success…">
+          <Input
+            value={form.roleFamily ?? ''}
+            onChange={(e) => set({ roleFamily: e.target.value || undefined })}
           />
         </Field>
         <Field label="Sort order">
@@ -179,7 +186,7 @@ export function RolesPage() {
     return roles.filter((r) => {
       if (!matchesActive(activeFilter, r.isActive)) return false;
       if (!q) return true;
-      return [r.name, r.solutionArea, r.orgUnit, r.subArea]
+      return [r.name, r.solutionArea, r.orgUnit, r.subArea, r.roleFamily]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q));
     });
