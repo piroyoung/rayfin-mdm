@@ -1,9 +1,9 @@
 /**
  * Duplicate detection across master records. Uses a union-find over normalized
- * match keys (email, tax id, name+country for customers; gtin, name+brand for
- * products) so transitively-linked records collapse into a single group.
+ * match keys (CRM / MSSales id, legal name + country for accounts) so
+ * transitively-linked records collapse into a single group.
  */
-import { isActiveStatus, type Customer, type Product } from './types';
+import { isActiveStatus, type Account } from './types';
 
 export interface DuplicateGroup<T> {
   /** Stable group key (the union-find root id). */
@@ -86,29 +86,20 @@ function buildGroups<T extends { id: string }>(
   return groups;
 }
 
-export function findCustomerDuplicates(
-  rows: Customer[]
-): DuplicateGroup<Customer>[] {
+export function findAccountDuplicates(
+  rows: Account[]
+): DuplicateGroup<Account>[] {
   const active = rows.filter((r) => isActiveStatus(r.status));
   return buildGroups(active, [
-    { reason: 'Same email', fn: (r) => norm(r.email) || undefined },
-    { reason: 'Same tax ID', fn: (r) => norm(r.taxId) || undefined },
+    { reason: 'Same CRM account ID', fn: (r) => norm(r.crmAccountId) || undefined },
     {
-      reason: 'Same name & country',
-      fn: (r) => (r.name ? `${norm(r.name)}|${norm(r.countryCode)}` : undefined),
+      reason: 'Same MSSales account ID',
+      fn: (r) => norm(r.msSalesAccountId) || undefined,
     },
-  ]);
-}
-
-export function findProductDuplicates(
-  rows: Product[]
-): DuplicateGroup<Product>[] {
-  const active = rows.filter((r) => isActiveStatus(r.status));
-  return buildGroups(active, [
-    { reason: 'Same GTIN', fn: (r) => norm(r.gtin) || undefined },
     {
-      reason: 'Same name & brand',
-      fn: (r) => (r.name ? `${norm(r.name)}|${norm(r.brand)}` : undefined),
+      reason: 'Same legal name & country',
+      fn: (r) =>
+        r.nameLegal ? `${norm(r.nameLegal)}|${norm(r.countryCode)}` : undefined,
     },
   ]);
 }

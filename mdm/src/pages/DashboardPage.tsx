@@ -2,16 +2,12 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
-import { listCustomers } from '@/services/customers';
-import { listProducts } from '@/services/products';
+import { listAccounts } from '@/services/accounts';
 import { listChangeRequests } from '@/services/stewardship';
 import { listAudit } from '@/services/audit';
 import { listOpenDataQualityIssues } from '@/services/dataQuality';
 import { ensureSeedData } from '@/services/seed';
-import {
-  findCustomerDuplicates,
-  findProductDuplicates,
-} from '@/domain/duplicates';
+import { findAccountDuplicates } from '@/domain/duplicates';
 import {
   AUDIT_ACTION_META,
   isActiveStatus,
@@ -19,9 +15,8 @@ import {
   tonedMeta,
   type AuditEvent,
   type ChangeRequest,
-  type Customer,
+  type Account,
   type DataQualityIssue,
-  type Product,
 } from '@/domain/types';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { fmtRelative } from '@/lib/format';
@@ -36,8 +31,7 @@ import {
 } from '@/components/ui';
 
 interface DashboardData {
-  customers: Customer[];
-  products: Product[];
+  accounts: Account[];
   changeRequests: ChangeRequest[];
   audit: AuditEvent[];
   openIssues: DataQualityIssue[];
@@ -51,45 +45,34 @@ function avg(values: number[]): number {
 export function DashboardPage() {
   const { data, loading, error } = useAsyncData<DashboardData>(async () => {
     await ensureSeedData();
-    const [customers, products, changeRequests, audit, openIssues] =
-      await Promise.all([
-        listCustomers(),
-        listProducts(),
-        listChangeRequests(),
-        listAudit(),
-        listOpenDataQualityIssues(),
-      ]);
-    return { customers, products, changeRequests, audit, openIssues };
+    const [accounts, changeRequests, audit, openIssues] = await Promise.all([
+      listAccounts(),
+      listChangeRequests(),
+      listAudit(),
+      listOpenDataQualityIssues(),
+    ]);
+    return { accounts, changeRequests, audit, openIssues };
   });
 
   const stats = useMemo(() => {
     if (!data) return null;
-    const { customers, products, changeRequests } = data;
-    const activeCustomers = customers.filter((c) => isActiveStatus(c.status));
-    const activeProducts = products.filter((p) => isActiveStatus(p.status));
-    const goldenCustomers = customers.filter((c) => c.isGolden).length;
-    const goldenProducts = products.filter((p) => p.isGolden).length;
-    const pending =
-      customers.filter((c) => c.status === 'pending_approval').length +
-      products.filter((p) => p.status === 'pending_approval').length;
+    const { accounts, changeRequests } = data;
+    const activeAccounts = accounts.filter((a) => isActiveStatus(a.status));
+    const goldenAccounts = accounts.filter((a) => a.isGolden).length;
+    const pending = accounts.filter(
+      (a) => a.status === 'pending_approval'
+    ).length;
     const openCrs = changeRequests.filter((c) => c.status === 'open').length;
-    const dupGroups =
-      findCustomerDuplicates(customers).length +
-      findProductDuplicates(products).length;
+    const dupGroups = findAccountDuplicates(accounts).length;
     const openIssues = data.openIssues.length;
     const criticalIssues = data.openIssues.filter(
       (i) => i.severity === 'critical' || i.severity === 'high'
     ).length;
-    const qualityScores = [
-      ...activeCustomers.map((c) => c.qualityScore ?? 0),
-      ...activeProducts.map((p) => p.qualityScore ?? 0),
-    ];
+    const qualityScores = activeAccounts.map((a) => a.qualityScore ?? 0);
     return {
-      totalRecords: activeCustomers.length + activeProducts.length,
-      customerCount: activeCustomers.length,
-      productCount: activeProducts.length,
-      goldenCustomers,
-      goldenProducts,
+      totalRecords: activeAccounts.length,
+      accountCount: activeAccounts.length,
+      goldenAccounts,
       pending,
       openCrs,
       dupGroups,
@@ -132,11 +115,11 @@ export function DashboardPage() {
         <StatCard
           label="Master records"
           value={stats.totalRecords}
-          hint={`${stats.customerCount} customers · ${stats.productCount} products`}
+          hint={`${stats.accountCount} accounts`}
         />
         <StatCard
           label="Golden records"
-          value={stats.goldenCustomers + stats.goldenProducts}
+          value={stats.goldenAccounts}
           tone="green"
           hint="Approved single source of truth"
         />
@@ -199,10 +182,10 @@ export function DashboardPage() {
             </div>
             <div className="flex gap-3 pt-1 text-sm">
               <Link
-                to="/customers"
+                to="/accounts"
                 className="font-medium text-indigo-600 hover:text-indigo-500"
               >
-                Review customers →
+                Review accounts →
               </Link>
               <Link
                 to="/data-quality"

@@ -1,18 +1,19 @@
-/** Customers: list, search, CRUD, lifecycle actions, and duplicate merge. */
+/** Accounts: list, search, CRUD, lifecycle actions, and duplicate merge. */
 import { useMemo, useState } from 'react';
 
 import {
-  createCustomer,
-  deleteCustomer,
-  listCustomers,
-  mergeCustomers,
-  setCustomerStatus,
-  updateCustomer,
-  type CustomerInput,
-} from '@/services/customers';
+  accountName,
+  createAccount,
+  deleteAccount,
+  listAccounts,
+  mergeAccounts,
+  setAccountStatus,
+  updateAccount,
+  type AccountInput,
+} from '@/services/accounts';
 import { submitChangeRequest } from '@/services/stewardship';
-import { findCustomerDuplicates } from '@/domain/duplicates';
-import { scoreCustomer } from '@/domain/quality';
+import { findAccountDuplicates } from '@/domain/duplicates';
+import { scoreAccount } from '@/domain/quality';
 import {
   labelledMeta,
   optionsOf,
@@ -20,7 +21,7 @@ import {
   SEGMENT_META,
   tonedMeta,
   isActiveStatus,
-  type Customer,
+  type Account,
   type RecordStatus,
 } from '@/domain/types';
 import { useAsyncData } from '@/hooks/useAsyncData';
@@ -43,60 +44,54 @@ import {
   Tooltip,
 } from '@/components/ui';
 
-const EMPTY: CustomerInput = {
-  customerCode: '',
-  name: '',
-  segment: 'corporate',
+const EMPTY: AccountInput = {
+  accountNumber: '',
+  nameLegal: '',
 };
 
-function snapshot(c: Customer): CustomerInput {
+function snapshot(a: Account): AccountInput {
   return {
-    customerCode: c.customerCode,
-    name: c.name,
-    legalName: c.legalName,
-    email: c.email,
-    phone: c.phone,
-    taxId: c.taxId,
-    website: c.website,
-    segment: c.segment,
-    industry: c.industry,
-    addressLine1: c.addressLine1,
-    city: c.city,
-    stateProvince: c.stateProvince,
-    postalCode: c.postalCode,
-    countryCode: c.countryCode,
-    msSalesAccountId: c.msSalesAccountId,
-    crmAccountId: c.crmAccountId,
-    parentAccountId: c.parentAccountId,
-    globalParentAccountId: c.globalParentAccountId,
-    verticalCode: c.verticalCode,
-    subVerticalCode: c.subVerticalCode,
-    verticalCategoryCode: c.verticalCategoryCode,
-    subSegmentCode: c.subSegmentCode,
-    region: c.region,
-    prefecture: c.prefecture,
-    sourceSystem: c.sourceSystem,
+    accountNumber: a.accountNumber,
+    nameLegal: a.nameLegal,
+    nameDisplay: a.nameDisplay,
+    nameLocal: a.nameLocal,
+    parentAccountId: a.parentAccountId,
+    globalParentAccountId: a.globalParentAccountId,
+    msSalesAccountId: a.msSalesAccountId,
+    crmAccountId: a.crmAccountId,
+    industryCode: a.industryCode,
+    verticalCode: a.verticalCode,
+    subVerticalCode: a.subVerticalCode,
+    verticalCategoryCode: a.verticalCategoryCode,
+    segmentCode: a.segmentCode,
+    subSegmentCode: a.subSegmentCode,
+    countryCode: a.countryCode,
+    region: a.region,
+    prefecture: a.prefecture,
+    city: a.city,
+    sourceSystem: a.sourceSystem,
   };
 }
 
-function CustomerForm({
+function AccountForm({
   initial,
   saving,
   onCancel,
   onSubmit,
 }: {
-  initial: CustomerInput;
+  initial: AccountInput;
   saving: boolean;
   onCancel: () => void;
-  onSubmit: (input: CustomerInput) => void;
+  onSubmit: (input: AccountInput) => void;
 }) {
-  const [form, setForm] = useState<CustomerInput>(initial);
-  const set = (patch: Partial<CustomerInput>) =>
+  const [form, setForm] = useState<AccountInput>(initial);
+  const set = (patch: Partial<AccountInput>) =>
     setForm((f) => ({ ...f, ...patch }));
 
-  const quality = scoreCustomer(form);
+  const quality = scoreAccount(form);
   const valid =
-    (form.customerCode ?? '').trim() !== '' && (form.name ?? '').trim() !== '';
+    (form.accountNumber ?? '').trim() !== '' &&
+    (form.nameLegal ?? '').trim() !== '';
 
   return (
     <form
@@ -106,21 +101,20 @@ function CustomerForm({
       }}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Customer code" required>
+        <Field label="Account number" required>
           <Input
-            value={form.customerCode}
-            onChange={(e) => set({ customerCode: e.target.value })}
-            placeholder="CUST-1001"
+            value={form.accountNumber}
+            onChange={(e) => set({ accountNumber: e.target.value })}
+            placeholder="ACC-1001"
             required
           />
         </Field>
-        <Field label="Segment" required>
+        <Field label="Segment">
           <Select
-            value={form.segment}
-            onChange={(e) =>
-              set({ segment: e.target.value as CustomerInput['segment'] })
-            }
+            value={form.segmentCode ?? ''}
+            onChange={(e) => set({ segmentCode: e.target.value || undefined })}
           >
+            <option value="">— Unspecified —</option>
             {optionsOf(SEGMENT_META).map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -128,62 +122,59 @@ function CustomerForm({
             ))}
           </Select>
         </Field>
-        <Field label="Name" required>
+        <Field label="Legal name" required>
           <Input
-            value={form.name}
-            onChange={(e) => set({ name: e.target.value })}
+            value={form.nameLegal}
+            onChange={(e) => set({ nameLegal: e.target.value })}
             placeholder="Contoso Ltd"
             required
           />
         </Field>
-        <Field label="Legal name">
+        <Field label="Display name">
           <Input
-            value={form.legalName ?? ''}
-            onChange={(e) => set({ legalName: e.target.value })}
+            value={form.nameDisplay ?? ''}
+            onChange={(e) => set({ nameDisplay: e.target.value })}
+            placeholder="Contoso"
           />
         </Field>
-        <Field label="Email">
+        <Field label="Local name">
           <Input
-            type="email"
-            value={form.email ?? ''}
-            onChange={(e) => set({ email: e.target.value })}
+            value={form.nameLocal ?? ''}
+            onChange={(e) => set({ nameLocal: e.target.value })}
+            placeholder="日本コントソ株式会社"
           />
         </Field>
-        <Field label="Phone">
+        <Field label="Industry code">
           <Input
-            value={form.phone ?? ''}
-            onChange={(e) => set({ phone: e.target.value })}
-          />
-        </Field>
-        <Field label="Tax ID">
-          <Input
-            value={form.taxId ?? ''}
-            onChange={(e) => set({ taxId: e.target.value })}
-          />
-        </Field>
-        <Field label="Website">
-          <Input
-            value={form.website ?? ''}
-            onChange={(e) => set({ website: e.target.value })}
-          />
-        </Field>
-        <Field label="Industry">
-          <Input
-            value={form.industry ?? ''}
-            onChange={(e) => set({ industry: e.target.value })}
+            value={form.industryCode ?? ''}
+            onChange={(e) => set({ industryCode: e.target.value })}
           />
         </Field>
         <Field label="Source system">
           <Input
             value={form.sourceSystem ?? ''}
             onChange={(e) => set({ sourceSystem: e.target.value })}
-            placeholder="SAP, Salesforce…"
+            placeholder="MSX, Excel, HR…"
           />
         </Field>
-        <Field label="Address line 1">
+        <Field label="Country code" hint="ISO-2, e.g. US, GB, JP">
           <Input
-            value={form.addressLine1 ?? ''}
-            onChange={(e) => set({ addressLine1: e.target.value })}
+            value={form.countryCode ?? ''}
+            maxLength={2}
+            onChange={(e) => set({ countryCode: e.target.value.toUpperCase() })}
+          />
+        </Field>
+        <Field label="Region">
+          <Input
+            value={form.region ?? ''}
+            onChange={(e) => set({ region: e.target.value })}
+            placeholder="JP East, JP West…"
+          />
+        </Field>
+        <Field label="Prefecture">
+          <Input
+            value={form.prefecture ?? ''}
+            onChange={(e) => set({ prefecture: e.target.value })}
           />
         </Field>
         <Field label="City">
@@ -192,32 +183,11 @@ function CustomerForm({
             onChange={(e) => set({ city: e.target.value })}
           />
         </Field>
-        <Field label="State / province">
-          <Input
-            value={form.stateProvince ?? ''}
-            onChange={(e) => set({ stateProvince: e.target.value })}
-          />
-        </Field>
-        <Field label="Postal code">
-          <Input
-            value={form.postalCode ?? ''}
-            onChange={(e) => set({ postalCode: e.target.value })}
-          />
-        </Field>
-        <Field label="Country code" hint="ISO-2, e.g. US, GB, JP">
-          <Input
-            value={form.countryCode ?? ''}
-            maxLength={2}
-            onChange={(e) =>
-              set({ countryCode: e.target.value.toUpperCase() })
-            }
-          />
-        </Field>
       </div>
 
       <details className="mt-5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
         <summary className="cursor-pointer text-sm font-medium text-gray-700">
-          Account master extensions (territory / vertical)
+          External IDs, hierarchy &amp; vertical coding
         </summary>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="MSSales account ID">
@@ -232,17 +202,16 @@ function CustomerForm({
               onChange={(e) => set({ crmAccountId: e.target.value })}
             />
           </Field>
-          <Field label="Region">
+          <Field label="Parent account ID">
             <Input
-              value={form.region ?? ''}
-              onChange={(e) => set({ region: e.target.value })}
-              placeholder="JP East, JP West…"
+              value={form.parentAccountId ?? ''}
+              onChange={(e) => set({ parentAccountId: e.target.value })}
             />
           </Field>
-          <Field label="Prefecture">
+          <Field label="Global parent account ID">
             <Input
-              value={form.prefecture ?? ''}
-              onChange={(e) => set({ prefecture: e.target.value })}
+              value={form.globalParentAccountId ?? ''}
+              onChange={(e) => set({ globalParentAccountId: e.target.value })}
             />
           </Field>
           <Field label="Vertical code">
@@ -274,9 +243,7 @@ function CustomerForm({
 
       <div className="mt-5 rounded-lg bg-gray-50 p-3">
         <div className="mb-1 flex items-center justify-between text-sm">
-          <span className="font-medium text-gray-700">
-            Live quality score
-          </span>
+          <span className="font-medium text-gray-700">Live quality score</span>
           <span className="text-gray-900">{quality.score}%</span>
         </div>
         <ProgressBar
@@ -313,46 +280,53 @@ function CustomerForm({
   );
 }
 
-export function CustomersPage() {
+export function AccountsPage() {
   const toast = useToast();
-  const { data, loading, error, reload } = useAsyncData(listCustomers);
+  const { data, loading, error, reload } = useAsyncData(listAccounts);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RecordStatus | 'all'>('all');
-  const [editing, setEditing] = useState<Customer | null>(null);
+  const [editing, setEditing] = useState<Account | null>(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [toDelete, setToDelete] = useState<Customer | null>(null);
+  const [toDelete, setToDelete] = useState<Account | null>(null);
   const [showDuplicates, setShowDuplicates] = useState(false);
 
-  const customers = useMemo(() => data ?? [], [data]);
+  const accounts = useMemo(() => data ?? [], [data]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return customers.filter((c) => {
-      if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+    return accounts.filter((a) => {
+      if (statusFilter !== 'all' && a.status !== statusFilter) return false;
       if (!q) return true;
-      return [c.customerCode, c.name, c.legalName, c.email, c.taxId, c.city]
+      return [
+        a.accountNumber,
+        a.nameLegal,
+        a.nameDisplay,
+        a.crmAccountId,
+        a.msSalesAccountId,
+        a.city,
+      ]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q));
     });
-  }, [customers, search, statusFilter]);
+  }, [accounts, search, statusFilter]);
 
   const duplicates = useMemo(
-    () => findCustomerDuplicates(customers),
-    [customers]
+    () => findAccountDuplicates(accounts),
+    [accounts]
   );
 
-  async function handleSave(input: CustomerInput) {
+  async function handleSave(input: AccountInput) {
     setSaving(true);
     try {
       if (editing) {
-        await updateCustomer(editing.id, input);
-        toast('Customer updated.', 'success');
+        await updateAccount(editing.id, input);
+        toast('Account updated.', 'success');
       } else {
-        await createCustomer(input);
-        toast('Customer created.', 'success');
+        await createAccount(input);
+        toast('Account created.', 'success');
       }
       setEditing(null);
       setCreating(false);
@@ -377,16 +351,16 @@ export function CustomersPage() {
     }
   }
 
-  function submitForApproval(c: Customer) {
+  function submitForApproval(a: Account) {
     return runAction(
-      c.id,
+      a.id,
       () =>
         submitChangeRequest({
-          domain: 'customer',
-          changeType: c.status === 'draft' ? 'create' : 'update',
-          recordId: c.id,
-          recordLabel: `${c.customerCode} — ${c.name}`,
-          payload: snapshot(c),
+          domain: 'account',
+          changeType: a.status === 'draft' ? 'create' : 'update',
+          recordId: a.id,
+          recordLabel: `${a.accountNumber} — ${accountName(a)}`,
+          payload: snapshot(a),
         }),
       'Submitted for approval.'
     );
@@ -395,10 +369,10 @@ export function CustomersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Customers"
-        subtitle="Customer master records, stewardship and golden-record management."
+        title="Accounts"
+        subtitle="Account master records, stewardship and golden-record management."
         actions={
-          <Tooltip label="新しい顧客マスターレコードを作成します" side="bottom">
+          <Tooltip label="新しいアカウントマスターレコードを作成します" side="bottom">
             <Button
               variant="primary"
               onClick={() => {
@@ -406,7 +380,7 @@ export function CustomersPage() {
                 setCreating(true);
               }}
             >
-              + New customer
+              + New account
             </Button>
           </Tooltip>
         }
@@ -438,7 +412,7 @@ export function CustomersPage() {
                   onMerge={(winner, losers) =>
                     runAction(
                       group.key,
-                      () => mergeCustomers(winner, losers),
+                      () => mergeAccounts(winner, losers),
                       'Records merged.'
                     )
                   }
@@ -453,7 +427,7 @@ export function CustomersPage() {
         <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 p-4">
           <div className="relative min-w-0 flex-1">
             <Input
-              placeholder="Search code, name, email, tax ID…"
+              placeholder="Search number, name, CRM/MSSales ID…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -476,16 +450,16 @@ export function CustomersPage() {
 
         {loading ? (
           <div className="flex justify-center py-16">
-            <Spinner size="lg" label="Loading customers…" />
+            <Spinner size="lg" label="Loading accounts…" />
           </div>
         ) : error ? (
-          <EmptyState title="Couldn't load customers" description={error} />
+          <EmptyState title="Couldn't load accounts" description={error} />
         ) : filtered.length === 0 ? (
           <EmptyState
-            title="No customers found"
+            title="No accounts found"
             description={
-              customers.length === 0
-                ? 'Create your first customer master record.'
+              accounts.length === 0
+                ? 'Create your first account master record.'
                 : 'Try adjusting your search or filters.'
             }
           />
@@ -494,7 +468,7 @@ export function CustomersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium tracking-wide text-gray-500 uppercase">
-                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Account</th>
                   <th className="px-4 py-3">Segment</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Quality</th>
@@ -503,80 +477,82 @@ export function CustomersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50/60">
+                {filtered.map((a) => (
+                  <tr key={a.id} className="hover:bg-gray-50/60">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {c.isGolden && (
+                        {a.isGolden && (
                           <span title="Golden record" className="text-amber-500">
                             ★
                           </span>
                         )}
                         <div className="min-w-0">
                           <p className="truncate font-medium text-gray-900">
-                            {c.name}
+                            {accountName(a)}
                           </p>
                           <p className="truncate text-xs text-gray-500">
-                            {c.customerCode}
-                            {c.city ? ` · ${c.city}` : ''}
-                            {c.countryCode ? `, ${c.countryCode}` : ''}
+                            {a.accountNumber}
+                            {a.city ? ` · ${a.city}` : ''}
+                            {a.countryCode ? `, ${a.countryCode}` : ''}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      {labelledMeta(SEGMENT_META, c.segment).label}
+                      {a.segmentCode
+                        ? labelledMeta(SEGMENT_META, a.segmentCode).label
+                        : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={tonedMeta(RECORD_STATUS_META, c.status).tone}>
-                        {tonedMeta(RECORD_STATUS_META, c.status).label}
+                      <Badge tone={tonedMeta(RECORD_STATUS_META, a.status).tone}>
+                        {tonedMeta(RECORD_STATUS_META, a.status).label}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <QualityBadge score={c.qualityScore} />
+                      <QualityBadge score={a.qualityScore} />
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
-                      {fmtRelative(c.updatedAt)}
+                      {fmtRelative(a.updatedAt)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {c.status !== 'merged' && (
-                          <Tooltip label="この顧客情報を編集します">
+                        {a.status !== 'merged' && (
+                          <Tooltip label="このアカウント情報を編集します">
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => {
                                 setCreating(false);
-                                setEditing(c);
+                                setEditing(a);
                               }}
                             >
                               Edit
                             </Button>
                           </Tooltip>
                         )}
-                        {(c.status === 'draft' || c.status === 'rejected') && (
-                          <Tooltip label="この顧客レコードを承認に提出します">
+                        {(a.status === 'draft' || a.status === 'rejected') && (
+                          <Tooltip label="このアカウントレコードを承認に提出します">
                             <Button
                               size="sm"
                               variant="secondary"
-                              loading={busyId === c.id}
-                              onClick={() => submitForApproval(c)}
+                              loading={busyId === a.id}
+                              onClick={() => submitForApproval(a)}
                             >
                               Submit
                             </Button>
                           </Tooltip>
                         )}
-                        {c.status === 'approved' && (
-                          <Tooltip label="この顧客レコードをアーカイブ（保管）します">
+                        {a.status === 'approved' && (
+                          <Tooltip label="このアカウントレコードをアーカイブ（保管）します">
                             <Button
                               size="sm"
                               variant="ghost"
-                              loading={busyId === c.id}
+                              loading={busyId === a.id}
                               onClick={() =>
                                 runAction(
-                                  c.id,
-                                  () => setCustomerStatus(c, 'archived'),
-                                  'Customer archived.'
+                                  a.id,
+                                  () => setAccountStatus(a, 'archived'),
+                                  'Account archived.'
                                 )
                               }
                             >
@@ -584,15 +560,15 @@ export function CustomersPage() {
                             </Button>
                           </Tooltip>
                         )}
-                        {isActiveStatus(c.status) &&
-                          c.status !== 'approved' &&
-                          c.status !== 'pending_approval' && (
-                            <Tooltip label="この顧客レコードを完全に削除します（取り消せません）">
+                        {isActiveStatus(a.status) &&
+                          a.status !== 'approved' &&
+                          a.status !== 'pending_approval' && (
+                            <Tooltip label="このアカウントレコードを完全に削除します（取り消せません）">
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 className="text-red-600 hover:bg-red-50"
-                                onClick={() => setToDelete(c)}
+                                onClick={() => setToDelete(a)}
                               >
                                 Delete
                               </Button>
@@ -614,10 +590,10 @@ export function CustomersPage() {
           setCreating(false);
           setEditing(null);
         }}
-        title={editing ? `Edit ${editing.name}` : 'New customer'}
+        title={editing ? `Edit ${accountName(editing)}` : 'New account'}
         size="lg"
       >
-        <CustomerForm
+        <AccountForm
           initial={editing ? snapshot(editing) : EMPTY}
           saving={saving}
           onCancel={() => {
@@ -630,10 +606,10 @@ export function CustomersPage() {
 
       <ConfirmDialog
         open={toDelete !== null}
-        title="Delete customer"
+        title="Delete account"
         message={
           toDelete
-            ? `Permanently delete ${toDelete.name} (${toDelete.customerCode})? This cannot be undone.`
+            ? `Permanently delete ${accountName(toDelete)} (${toDelete.accountNumber})? This cannot be undone.`
             : ''
         }
         confirmLabel="Delete"
@@ -646,8 +622,8 @@ export function CustomersPage() {
           setToDelete(null);
           void runAction(
             target.id,
-            () => deleteCustomer(target),
-            'Customer deleted.'
+            () => deleteAccount(target),
+            'Account deleted.'
           );
         }}
       />
@@ -661,10 +637,10 @@ function DuplicateGroupCard({
   busy,
   onMerge,
 }: {
-  records: Customer[];
+  records: Account[];
   reasons: string[];
   busy: boolean;
-  onMerge: (winner: Customer, losers: Customer[]) => void;
+  onMerge: (winner: Account, losers: Account[]) => void;
 }) {
   const [winnerId, setWinnerId] = useState(
     () =>
@@ -675,9 +651,7 @@ function DuplicateGroupCard({
 
   return (
     <div className="rounded-lg border border-amber-200 bg-white p-3">
-      <p className="mb-2 text-xs text-amber-700">
-        Match: {reasons.join(', ')}
-      </p>
+      <p className="mb-2 text-xs text-amber-700">Match: {reasons.join(', ')}</p>
       <div className="space-y-1.5">
         {records.map((r) => (
           <label
@@ -691,8 +665,8 @@ function DuplicateGroupCard({
               onChange={() => setWinnerId(r.id)}
             />
             <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
-              {r.name}{' '}
-              <span className="text-xs text-gray-500">({r.customerCode})</span>
+              {accountName(r)}{' '}
+              <span className="text-xs text-gray-500">({r.accountNumber})</span>
             </span>
             <QualityBadge score={r.qualityScore} />
             <Badge tone={tonedMeta(RECORD_STATUS_META, r.status).tone}>

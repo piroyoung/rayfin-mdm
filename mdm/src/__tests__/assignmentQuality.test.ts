@@ -13,7 +13,7 @@ import {
 import type {
   AccountEmployeeAssignment,
   AccountTerritoryAssignment,
-  Customer,
+  Account,
   DataQualityIssue,
   Employee,
   Territory,
@@ -21,19 +21,22 @@ import type {
 
 const NOW = new Date('2026-01-01T00:00:00Z');
 
-const account = (over: Partial<Customer> & { id: string }): Customer =>
+const account = (over: Partial<Account> & { id: string }): Account =>
   ({
-    customerCode: `C-${over.id}`,
-    name: `Account ${over.id}`,
-    segment: 'enterprise',
+    accountNumber: `C-${over.id}`,
+    nameLegal: `Account ${over.id}`,
+    segmentCode: 'enterprise',
     status: 'approved',
     isGolden: false,
     msSalesAccountId: 'MS-1',
     crmAccountId: 'CRM-1',
+    isActive: true,
+    validFrom: NOW,
+    currentFlag: true,
     createdAt: NOW,
     updatedAt: NOW,
     ...over,
-  }) as Customer;
+  }) as Account;
 
 const employee = (over: Partial<Employee> & { id: string }): Employee =>
   ({
@@ -123,8 +126,8 @@ describe('evaluateAssignmentQuality — account rules', () => {
     const findings = evaluateAssignmentQuality({
       ...empty,
       accounts: [
-        account({ id: 'A1', taxId: 'JP-999' }),
-        account({ id: 'A2', taxId: 'JP-999' }),
+        account({ id: 'A1', crmAccountId: 'JP-999' }),
+        account({ id: 'A2', crmAccountId: 'JP-999' }),
       ],
     });
     const dups = findings.filter((f) => f.issueType === 'DUPLICATE_ACCOUNT');

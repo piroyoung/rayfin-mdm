@@ -21,7 +21,7 @@ import {
 export class AccountEmployeeAssignment {
   @uuid() id!: string;
 
-  /** Customer.id (the account). */
+  /** Account.id (the master account record). */
   @uuid() accountId!: string;
   @uuid() employeeId!: string;
   @uuid() fiscalYearId!: string;

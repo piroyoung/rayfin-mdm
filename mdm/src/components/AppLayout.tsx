@@ -11,8 +11,7 @@ import { Button, Tooltip } from '@/components/ui';
 type IconName =
   | 'guide'
   | 'dashboard'
-  | 'customers'
-  | 'products'
+  | 'accounts'
   | 'employees'
   | 'territories'
   | 'assignments'
@@ -26,10 +25,8 @@ const ICONS: Record<IconName, string> = {
   guide:
     'M12 22a10 10 0 110-20 10 10 0 010 20zM9.5 9a2.5 2.5 0 014.9.7c0 1.7-2.5 2.5-2.5 2.5M12 16h.01',
   dashboard: 'M3 12h7V3H3v9zm0 9h7v-7H3v7zm11 0h7V12h-7v9zm0-18v7h7V3h-7z',
-  customers:
+  accounts:
     'M17 20h5v-1a4 4 0 00-3-3.87M9 20H4v-1a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zm6-4a3 3 0 10-2-5.24M5 11a3 3 0 002-5.24',
-  products:
-    'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-14L4 7m8 4v10M4 7v10l8 4',
   employees:
     'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   territories:
@@ -69,8 +66,7 @@ const NAV: Array<{ to: string; label: string; icon: IconName; end?: boolean }> =
   [
     { to: '/guide', label: 'MDMとは？', icon: 'guide' },
     { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
-    { to: '/customers', label: 'Customers', icon: 'customers' },
-    { to: '/products', label: 'Products', icon: 'products' },
+    { to: '/accounts', label: 'Accounts', icon: 'accounts' },
     { to: '/employees', label: 'Employees', icon: 'employees' },
     { to: '/territories', label: 'Territories', icon: 'territories' },
     { to: '/assignments', label: 'Assignments', icon: 'assignments' },

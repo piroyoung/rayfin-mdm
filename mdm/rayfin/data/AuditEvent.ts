@@ -17,8 +17,7 @@ export class AuditEvent {
   @uuid() id!: string;
 
   @set(
-    'customer',
-    'product',
+    'account',
     'reference',
     'change_request',
     'employee',
@@ -30,8 +29,7 @@ export class AuditEvent {
     'data_quality'
   )
   domain!:
-    | 'customer'
-    | 'product'
+    | 'account'
     | 'reference'
     | 'change_request'
     | 'employee'
