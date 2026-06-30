@@ -7,8 +7,7 @@
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
-import { getCustomer, setCustomerStatus } from '@/services/customers';
-import { getProduct, setProductStatus } from '@/services/products';
+import { getAccount, setAccountStatus } from '@/services/accounts';
 import type {
   ChangeRequest,
   ChangeType,
@@ -98,13 +97,9 @@ async function moveTarget(
   status: 'approved' | 'rejected' | 'archived' | 'pending_approval',
   note?: string
 ): Promise<void> {
-  if (domain === 'customer') {
-    const record = await getCustomer(recordId);
-    if (record) await setCustomerStatus(record, status, note);
-  } else {
-    const record = await getProduct(recordId);
-    if (record) await setProductStatus(record, status, note);
-  }
+  void domain; // single master domain (account) today; kept for future domains
+  const record = await getAccount(recordId);
+  if (record) await setAccountStatus(record, status, note);
 }
 
 /** Approve a request: apply its effect to the target record, mark it applied. */

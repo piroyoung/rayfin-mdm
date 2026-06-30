@@ -24,36 +24,21 @@ interface FieldSpec {
   validate?: (value: string) => boolean;
 }
 
-const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const isCountry = (v: string) => /^[A-Za-z]{2}$/.test(v);
-const isCurrency = (v: string) => /^[A-Za-z]{3}$/.test(v);
 
-const CUSTOMER_SPECS: FieldSpec[] = [
-  { key: 'customerCode', label: 'Customer code', weight: 3 },
-  { key: 'name', label: 'Name', weight: 3 },
-  { key: 'segment', label: 'Segment', weight: 2 },
-  { key: 'email', label: 'Email', weight: 2, validate: isEmail },
-  { key: 'phone', label: 'Phone', weight: 1 },
-  { key: 'taxId', label: 'Tax ID', weight: 2 },
-  { key: 'website', label: 'Website', weight: 1 },
-  { key: 'industry', label: 'Industry', weight: 1 },
-  { key: 'addressLine1', label: 'Address', weight: 1 },
-  { key: 'city', label: 'City', weight: 1 },
-  { key: 'stateProvince', label: 'State / province', weight: 1 },
-  { key: 'postalCode', label: 'Postal code', weight: 1 },
+const ACCOUNT_SPECS: FieldSpec[] = [
+  { key: 'accountNumber', label: 'Account number', weight: 3 },
+  { key: 'nameLegal', label: 'Legal name', weight: 3 },
+  { key: 'nameDisplay', label: 'Display name', weight: 1 },
+  { key: 'industryCode', label: 'Industry', weight: 2 },
+  { key: 'verticalCode', label: 'Vertical', weight: 2 },
+  { key: 'segmentCode', label: 'Segment', weight: 2 },
   { key: 'countryCode', label: 'Country code', weight: 2, validate: isCountry },
-];
-
-const PRODUCT_SPECS: FieldSpec[] = [
-  { key: 'sku', label: 'SKU', weight: 3 },
-  { key: 'name', label: 'Name', weight: 3 },
-  { key: 'description', label: 'Description', weight: 1 },
-  { key: 'category', label: 'Category', weight: 2 },
-  { key: 'brand', label: 'Brand', weight: 1 },
-  { key: 'gtin', label: 'GTIN', weight: 2 },
-  { key: 'unitOfMeasure', label: 'Unit of measure', weight: 2 },
-  { key: 'listPrice', label: 'List price', weight: 2 },
-  { key: 'currency', label: 'Currency', weight: 1, validate: isCurrency },
+  { key: 'region', label: 'Region', weight: 1 },
+  { key: 'prefecture', label: 'Prefecture', weight: 1 },
+  { key: 'city', label: 'City', weight: 1 },
+  { key: 'crmAccountId', label: 'CRM account ID', weight: 1 },
+  { key: 'msSalesAccountId', label: 'MSSales account ID', weight: 1 },
 ];
 
 function scoreRecord(
@@ -85,12 +70,8 @@ function scoreRecord(
   return { score, earned, total, missing, invalid };
 }
 
-export function scoreCustomer(record: object): QualityResult {
-  return scoreRecord(record as Record<string, unknown>, CUSTOMER_SPECS);
-}
-
-export function scoreProduct(record: object): QualityResult {
-  return scoreRecord(record as Record<string, unknown>, PRODUCT_SPECS);
+export function scoreAccount(record: object): QualityResult {
+  return scoreRecord(record as Record<string, unknown>, ACCOUNT_SPECS);
 }
 
 /** Coarse band used for colour coding. */

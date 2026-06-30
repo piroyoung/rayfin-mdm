@@ -20,7 +20,7 @@ import {
 export class AccountTerritoryAssignment {
   @uuid() id!: string;
 
-  /** Customer.id (the account). */
+  /** Account.id (the master account record). */
   @uuid() accountId!: string;
   @uuid() territoryId!: string;
   @uuid() fiscalYearId!: string;

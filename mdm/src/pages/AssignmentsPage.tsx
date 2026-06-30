@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 
-import { listCustomers } from '@/services/customers';
+import { listAccounts, accountName } from '@/services/accounts';
 import { listFiscalYears } from '@/services/fiscalYears';
 import { listAccountAssignableRoles } from '@/services/roleTypes';
 import { listEmployees } from '@/services/employees';
@@ -33,7 +33,7 @@ import {
   tonedMeta,
   type AccountEmployeeAssignment,
   type AccountTerritoryAssignment,
-  type Customer,
+  type Account,
   type Employee,
   type FiscalYear,
   type RoleType,
@@ -53,7 +53,7 @@ import {
 } from '@/components/ui';
 
 interface RefData {
-  customers: Customer[];
+  accounts: Account[];
   fiscalYears: FiscalYear[];
   roles: RoleType[];
   employees: Employee[];
@@ -61,15 +61,15 @@ interface RefData {
 }
 
 const loadRefs = async (): Promise<RefData> => {
-  const [customers, fiscalYears, roles, employees, territories] =
+  const [accounts, fiscalYears, roles, employees, territories] =
     await Promise.all([
-      listCustomers(),
+      listAccounts(),
       listFiscalYears(),
       listAccountAssignableRoles(),
       listEmployees(),
       listTerritories(),
     ]);
-  return { customers, fiscalYears, roles, employees, territories };
+  return { accounts, fiscalYears, roles, employees, territories };
 };
 
 interface AccountAssignments {
@@ -196,7 +196,7 @@ export function AssignmentsPage() {
   const toast = useToast();
   const { data: refs, loading: refsLoading } = useAsyncData(loadRefs);
 
-  const customers = useMemo(() => refs?.customers ?? [], [refs]);
+  const accounts = useMemo(() => refs?.accounts ?? [], [refs]);
   const fiscalYears = useMemo(() => refs?.fiscalYears ?? [], [refs]);
   const roles = useMemo(() => refs?.roles ?? [], [refs]);
   const employees = useMemo(() => refs?.employees ?? [], [refs]);
@@ -335,7 +335,7 @@ export function AssignmentsPage() {
     }
   }
 
-  const selectedAccount = customers.find((c) => c.id === accountId);
+  const selectedAccount = accounts.find((c) => c.id === accountId);
   const territoryPlacement = assignments.territory.find((t) => t.currentFlag);
 
   async function handleReassign() {
@@ -366,9 +366,9 @@ export function AssignmentsPage() {
               onChange={(e) => setAccountId(e.target.value)}
             >
               <option value="">— select an account —</option>
-              {customers.map((c) => (
+              {accounts.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.customerCode})
+                  {accountName(c)} ({c.accountNumber})
                 </option>
               ))}
             </Select>
@@ -488,7 +488,7 @@ export function AssignmentsPage() {
             <div className="flex items-center justify-between border-b border-gray-100 p-4">
               <p className="text-sm font-medium text-gray-700">
                 Role coverage
-                {selectedAccount ? ` — ${selectedAccount.name}` : ''}
+                {selectedAccount ? ` — ${accountName(selectedAccount)}` : ''}
               </p>
               <Tooltip label="この口座に担当者を割り当てます" side="bottom">
                 <Button

@@ -6,7 +6,7 @@
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
-import { listCustomers } from '@/services/customers';
+import { listAccounts } from '@/services/accounts';
 import { listEmployees } from '@/services/employees';
 import { listTerritories } from '@/services/territories';
 import {
@@ -127,7 +127,7 @@ export async function runAssignmentQualityChecks(): Promise<number> {
     territoryAssignments,
     existing,
   ] = await Promise.all([
-    listCustomers(),
+    listAccounts(),
     listEmployees(),
     listTerritories(),
     listEmployeeAssignments(),

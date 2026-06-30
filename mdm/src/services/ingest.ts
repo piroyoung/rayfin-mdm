@@ -9,7 +9,7 @@
  *                      assignments, register source cross-references, and raise
  *                      any new data-quality issues.
  */
-import { createCustomer, listCustomers } from '@/services/customers';
+import { createAccount, listAccounts } from '@/services/accounts';
 import { listEmployees } from '@/services/employees';
 import { listTerritories } from '@/services/territories';
 import { listFiscalYears } from '@/services/fiscalYears';
@@ -69,8 +69,8 @@ function resolveIngestFiscalYear(years: FiscalYear[]): FiscalYear | null {
 }
 
 async function buildContext(staging: StagingResult) {
-  const [customers, employees, territories, fiscalYears] = await Promise.all([
-    listCustomers(),
+  const [accounts, employees, territories, fiscalYears] = await Promise.all([
+    listAccounts(),
     listEmployees(),
     listTerritories(),
     listFiscalYears(),
@@ -82,7 +82,13 @@ async function buildContext(staging: StagingResult) {
       .map((t) => normalizeTerritoryCode(t.territoryCode))
       .filter(Boolean)
   );
-  const existingAccountKeys = new Set(customers.map((c) => accountKeyOf(c.name)));
+  const existingAccountKeys = new Set(
+    accounts.flatMap((c) =>
+      [c.nameLegal, c.nameDisplay]
+        .filter((n): n is string => Boolean(n))
+        .map((n) => accountKeyOf(n))
+    )
+  );
 
   const plan = planIngest(staging, {
     aliasIndex,
@@ -93,7 +99,7 @@ async function buildContext(staging: StagingResult) {
 
   return {
     plan,
-    customers,
+    accounts,
     territories,
     fiscalYear: resolveIngestFiscalYear(fiscalYears),
   };
@@ -109,7 +115,7 @@ export async function previewIngest(
   return { staging, plan, fiscalYear };
 }
 
-function customerCodeFor(account: {
+function accountNumberFor(account: {
   msSalesAccountId?: string;
   name: string;
 }): string {
@@ -130,7 +136,7 @@ export async function commitIngest(
   config: IngestColumnConfig = DEFAULT_INGEST_CONFIG
 ): Promise<IngestSummary> {
   const staging = buildStaging(parseDelimited(text), config);
-  const { plan, customers, territories, fiscalYear } = await buildContext(staging);
+  const { plan, accounts, territories, fiscalYear } = await buildContext(staging);
 
   const summary: IngestSummary = {
     accountsCreated: 0,
@@ -142,26 +148,30 @@ export async function commitIngest(
   };
 
   // 1) Accounts — match existing by normalized name, create the rest.
-  const customerByKey = new Map(customers.map((c) => [accountKeyOf(c.name), c.id]));
+  const accountByKey = new Map<string, string>();
+  for (const c of accounts) {
+    for (const n of [c.nameLegal, c.nameDisplay]) {
+      if (n) accountByKey.set(accountKeyOf(n), c.id);
+    }
+  }
   for (const account of staging.accounts) {
-    let customerId = customerByKey.get(account.accountKey);
-    if (!customerId) {
-      const created = await createCustomer({
-        customerCode: customerCodeFor(account),
-        name: account.name,
-        segment: 'corporate',
+    let accountId = accountByKey.get(account.accountKey);
+    if (!accountId) {
+      const created = await createAccount({
+        accountNumber: accountNumberFor(account),
+        nameLegal: account.name,
         msSalesAccountId: account.msSalesAccountId,
         crmAccountId: account.crmAccountId,
         sourceSystem: INGEST_SOURCE_SYSTEM,
       });
-      customerId = created.id;
-      customerByKey.set(account.accountKey, customerId);
+      accountId = created.id;
+      accountByKey.set(account.accountKey, accountId);
       summary.accountsCreated += 1;
     }
     // Record the originating Excel row (and MSSales id) as a cross-reference.
     await ensureSourceXref({
-      mdmEntityType: 'customer',
-      mdmEntityId: customerId,
+      mdmEntityType: 'account',
+      mdmEntityId: accountId,
       sourceSystem: INGEST_SOURCE_SYSTEM,
       sourceEntityType: 'account',
       sourceRecordId: account.msSalesAccountId
@@ -190,7 +200,7 @@ export async function commitIngest(
   );
 
   for (const intent of plan.intents) {
-    const accountId = customerByKey.get(intent.accountKey);
+    const accountId = accountByKey.get(intent.accountKey);
     if (!accountId) {
       summary.assignmentsSkipped += 1;
       continue;

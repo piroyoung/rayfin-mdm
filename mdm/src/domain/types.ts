@@ -8,8 +8,7 @@
  */
 import type { AuditEvent } from '../../rayfin/data/AuditEvent';
 import type { ChangeRequest } from '../../rayfin/data/ChangeRequest';
-import type { Customer } from '../../rayfin/data/Customer';
-import type { Product } from '../../rayfin/data/Product';
+import type { Account } from '../../rayfin/data/Account';
 import type { ReferenceValue } from '../../rayfin/data/ReferenceValue';
 import type { FiscalYear } from '../../rayfin/data/FiscalYear';
 import type { RoleType } from '../../rayfin/data/RoleType';
@@ -20,7 +19,7 @@ import type { AccountEmployeeAssignment } from '../../rayfin/data/AccountEmploye
 import type { SourceXref } from '../../rayfin/data/SourceXref';
 import type { DataQualityIssue } from '../../rayfin/data/DataQualityIssue';
 
-export type { AuditEvent, ChangeRequest, Customer, Product, ReferenceValue };
+export type { AuditEvent, ChangeRequest, Account, ReferenceValue };
 export type {
   FiscalYear,
   RoleType,
@@ -32,10 +31,8 @@ export type {
   DataQualityIssue,
 };
 
-/** Lifecycle shared by every master record (Customer + Product). */
-export type RecordStatus = Customer['status'];
-export type CustomerSegment = Customer['segment'];
-export type UnitOfMeasure = Product['unitOfMeasure'];
+/** Lifecycle shared by every master record. */
+export type RecordStatus = Account['status'];
 export type MasterDomain = ChangeRequest['domain'];
 export type ChangeType = ChangeRequest['changeType'];
 export type ChangeStatus = ChangeRequest['status'];
@@ -73,23 +70,12 @@ export const RECORD_STATUS_META: Record<RecordStatus, Toned> = {
   merged: { label: 'Merged', tone: 'purple' },
 };
 
-export const SEGMENT_META: Record<CustomerSegment, Labelled> = {
+export const SEGMENT_META: Record<string, Labelled> = {
   enterprise: { label: 'Enterprise' },
   corporate: { label: 'Corporate' },
   smb: { label: 'SMB' },
   consumer: { label: 'Consumer' },
   public_sector: { label: 'Public sector' },
-};
-
-export const UOM_META: Record<UnitOfMeasure, Labelled> = {
-  each: { label: 'Each' },
-  kg: { label: 'Kilogram (kg)' },
-  g: { label: 'Gram (g)' },
-  l: { label: 'Litre (L)' },
-  ml: { label: 'Millilitre (mL)' },
-  box: { label: 'Box' },
-  case: { label: 'Case' },
-  pallet: { label: 'Pallet' },
 };
 
 export const CHANGE_TYPE_META: Record<ChangeType, Labelled> = {
@@ -118,8 +104,7 @@ export const AUDIT_ACTION_META: Record<AuditAction, Toned> = {
 };
 
 export const MASTER_DOMAIN_META: Record<MasterDomain, Labelled> = {
-  customer: { label: 'Customer' },
-  product: { label: 'Product' },
+  account: { label: 'Account' },
 };
 
 /** Assignment lifecycle: draft → submitted → approved → active → retired. */

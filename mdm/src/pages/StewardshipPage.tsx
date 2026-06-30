@@ -10,7 +10,7 @@ import {
   listEmployeeAssignments,
   setEmployeeAssignmentStatus,
 } from '@/services/assignments';
-import { listCustomers } from '@/services/customers';
+import { listAccounts, accountName } from '@/services/accounts';
 import { listEmployees } from '@/services/employees';
 import { listRoleTypes } from '@/services/roleTypes';
 import {
@@ -64,13 +64,13 @@ interface ApprovalRefs {
 function AssignmentApprovals() {
   const toast = useToast();
   const { data, loading, reload } = useAsyncData<ApprovalRefs>(async () => {
-    const [assignments, customers, employees, roles] = await Promise.all([
+    const [assignments, accountList, employees, roles] = await Promise.all([
       listEmployeeAssignments(),
-      listCustomers(),
+      listAccounts(),
       listEmployees(),
       listRoleTypes(),
     ]);
-    const accounts = new Map(customers.map((c) => [c.id, c.name]));
+    const accounts = new Map(accountList.map((c) => [c.id, accountName(c)]));
     const emps = new Map(employees.map((e) => [e.id, e]));
     const roleMap = new Map(roles.map((r) => [r.code, r.name]));
     return {

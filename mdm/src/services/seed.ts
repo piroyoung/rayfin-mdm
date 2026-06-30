@@ -11,15 +11,18 @@
  */
 import { getRayfinClient, isLocalBackend } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
-import { createCustomer, setCustomerStatus, listCustomers } from '@/services/customers';
-import { createProduct, setProductStatus } from '@/services/products';
+import {
+  createAccount,
+  setAccountStatus,
+  listAccounts,
+  accountName,
+} from '@/services/accounts';
 import { createFiscalYear, listFiscalYears } from '@/services/fiscalYears';
 import { createRoleType } from '@/services/roleTypes';
 import { createEmployee, listEmployees } from '@/services/employees';
 import { createTerritory } from '@/services/territories';
 import { createEmployeeAssignment } from '@/services/assignments';
-import type { CustomerInput } from '@/services/customers';
-import type { ProductInput } from '@/services/products';
+import type { AccountInput } from '@/services/accounts';
 import type { FiscalYearInput } from '@/services/fiscalYears';
 import type { RoleTypeInput } from '@/services/roleTypes';
 import type { EmployeeInput } from '@/services/employees';
@@ -46,12 +49,6 @@ const REFERENCE_SETS: Record<string, Array<[string, string]>> = {
     ['AU', 'Australia'],
     ['CA', 'Canada'],
   ],
-  currency: [
-    ['USD', 'US Dollar'],
-    ['EUR', 'Euro'],
-    ['GBP', 'Pound Sterling'],
-    ['JPY', 'Japanese Yen'],
-  ],
   industry: [
     ['technology', 'Technology'],
     ['manufacturing', 'Manufacturing'],
@@ -59,12 +56,6 @@ const REFERENCE_SETS: Record<string, Array<[string, string]>> = {
     ['healthcare', 'Healthcare'],
     ['financial_services', 'Financial Services'],
     ['public_sector', 'Public Sector'],
-  ],
-  product_category: [
-    ['hardware', 'Hardware'],
-    ['software', 'Software'],
-    ['accessories', 'Accessories'],
-    ['services', 'Services'],
   ],
   territory_type: [
     ['POD', 'POD'],
@@ -114,148 +105,75 @@ const REFERENCE_SETS: Record<string, Array<[string, string]>> = {
   ],
 };
 
-interface SeedCustomer extends CustomerInput {
-  finalStatus: RecordStatus;
-}
-interface SeedProduct extends ProductInput {
+interface SeedAccount extends AccountInput {
   finalStatus: RecordStatus;
 }
 
-const SEED_CUSTOMERS: SeedCustomer[] = [
+const SEED_ACCOUNTS: SeedAccount[] = [
   {
-    customerCode: 'CUST-1001',
-    name: 'Contoso Ltd',
-    legalName: 'Contoso Limited',
-    email: 'accounts@contoso.com',
-    phone: '+44 20 7946 0001',
-    taxId: 'GB-884217',
-    website: 'https://contoso.com',
-    segment: 'enterprise',
-    industry: 'Technology',
-    addressLine1: '1 Contoso Way',
+    accountNumber: 'ACC-1001',
+    nameDisplay: 'Contoso Ltd',
+    nameLegal: 'Contoso Limited',
+    segmentCode: 'enterprise',
+    industryCode: 'technology',
+    crmAccountId: 'CRM-CONTOSO',
+    msSalesAccountId: 'MS-CONTOSO',
     city: 'London',
-    stateProvince: 'London',
-    postalCode: 'EC1A 1BB',
+    region: 'UK',
     countryCode: 'GB',
     sourceSystem: 'SAP',
     finalStatus: 'approved',
   },
   {
-    // Intentional near-duplicate of CUST-1001 (same tax id + email).
-    customerCode: 'CUST-1002',
-    name: 'Contoso Limited',
-    email: 'accounts@contoso.com',
-    segment: 'enterprise',
-    taxId: 'GB-884217',
+    // Intentional near-duplicate of ACC-1001 (same legal name + country, same CRM id).
+    accountNumber: 'ACC-1002',
+    nameDisplay: 'Contoso Limited',
+    nameLegal: 'Contoso Limited',
+    segmentCode: 'enterprise',
+    crmAccountId: 'CRM-CONTOSO',
     city: 'London',
     countryCode: 'GB',
     sourceSystem: 'Salesforce',
     finalStatus: 'draft',
   },
   {
-    customerCode: 'CUST-1010',
-    name: 'Fabrikam Inc',
-    email: 'hello@fabrikam.com',
-    phone: '+1 425 555 0100',
-    segment: 'corporate',
-    industry: 'Manufacturing',
-    addressLine1: '500 Fabrikam Plaza',
+    accountNumber: 'ACC-1010',
+    nameDisplay: 'Fabrikam Inc',
+    nameLegal: 'Fabrikam Incorporated',
+    segmentCode: 'corporate',
+    industryCode: 'manufacturing',
     city: 'Redmond',
-    stateProvince: 'WA',
-    postalCode: '98052',
+    region: 'Americas',
     countryCode: 'US',
     sourceSystem: 'SAP',
     finalStatus: 'approved',
   },
   {
-    customerCode: 'CUST-1020',
-    name: 'Adventure Works',
-    segment: 'smb',
+    accountNumber: 'ACC-1020',
+    nameLegal: 'Adventure Works',
+    segmentCode: 'smb',
     city: 'Austin',
     countryCode: 'US',
     sourceSystem: 'Salesforce',
     finalStatus: 'draft',
   },
   {
-    customerCode: 'CUST-1030',
-    name: 'Northwind Traders',
-    legalName: 'Northwind Traders GmbH',
-    email: 'kontakt@northwind.example',
-    phone: '+49 30 901820',
-    taxId: 'DE-552210',
-    website: 'https://northwind.example',
-    segment: 'corporate',
-    industry: 'Retail',
-    addressLine1: 'Unter den Linden 5',
+    accountNumber: 'ACC-1030',
+    nameDisplay: 'Northwind Traders',
+    nameLegal: 'Northwind Traders GmbH',
+    segmentCode: 'corporate',
+    industryCode: 'retail',
     city: 'Berlin',
-    postalCode: '10117',
+    region: 'EMEA',
     countryCode: 'DE',
     sourceSystem: 'Dynamics',
     finalStatus: 'pending_approval',
   },
   {
-    customerCode: 'CUST-1040',
-    name: 'Tailspin Toys',
-    segment: 'consumer',
+    accountNumber: 'ACC-1040',
+    nameLegal: 'Tailspin Toys',
+    segmentCode: 'consumer',
     countryCode: 'US',
-    sourceSystem: 'Web',
-    finalStatus: 'draft',
-  },
-];
-
-const SEED_PRODUCTS: SeedProduct[] = [
-  {
-    sku: 'SKU-9001',
-    name: 'Surface Laptop 7',
-    description: '13.8" touchscreen laptop, 16GB RAM, 512GB SSD.',
-    category: 'Hardware',
-    brand: 'Contoso',
-    gtin: '0190001234567',
-    unitOfMeasure: 'each',
-    listPrice: 1299,
-    currency: 'USD',
-    sourceSystem: 'SAP',
-    finalStatus: 'approved',
-  },
-  {
-    // Intentional duplicate of SKU-9001 (same name + brand).
-    sku: 'SKU-9002',
-    name: 'Surface Laptop 7',
-    category: 'Hardware',
-    brand: 'Contoso',
-    unitOfMeasure: 'each',
-    listPrice: 1299,
-    currency: 'USD',
-    sourceSystem: 'Web',
-    finalStatus: 'draft',
-  },
-  {
-    sku: 'SKU-9100',
-    name: 'Wireless Ergonomic Mouse',
-    description: 'Bluetooth ergonomic mouse.',
-    category: 'Accessories',
-    brand: 'Fabrikam',
-    gtin: '0190009988776',
-    unitOfMeasure: 'each',
-    listPrice: 29.99,
-    currency: 'USD',
-    sourceSystem: 'SAP',
-    finalStatus: 'approved',
-  },
-  {
-    sku: 'SKU-9200',
-    name: 'Cloud Backup Service',
-    category: 'Services',
-    unitOfMeasure: 'each',
-    listPrice: 9.99,
-    currency: 'USD',
-    sourceSystem: 'Dynamics',
-    finalStatus: 'pending_approval',
-  },
-  {
-    sku: 'SKU-9300',
-    name: 'USB-C Charging Cable',
-    unitOfMeasure: 'each',
     sourceSystem: 'Web',
     finalStatus: 'draft',
   },
@@ -281,16 +199,10 @@ async function seedReference(): Promise<void> {
 }
 
 async function seedMasterData(): Promise<void> {
-  for (const { finalStatus, ...input } of SEED_CUSTOMERS) {
-    const created = await createCustomer(input);
+  for (const { finalStatus, ...input } of SEED_ACCOUNTS) {
+    const created = await createAccount(input);
     if (finalStatus !== 'draft') {
-      await setCustomerStatus(created, finalStatus);
-    }
-  }
-  for (const { finalStatus, ...input } of SEED_PRODUCTS) {
-    const created = await createProduct(input);
-    if (finalStatus !== 'draft') {
-      await setProductStatus(created, finalStatus);
+      await setAccountStatus(created, finalStatus);
     }
   }
 }
@@ -419,8 +331,8 @@ async function seedTerritories(): Promise<void> {
 
 /** Link seeded employees to seeded accounts for the current fiscal year. */
 async function seedAssignments(): Promise<void> {
-  const [customers, employees, fiscalYears] = await Promise.all([
-    listCustomers(),
+  const [accounts, employees, fiscalYears] = await Promise.all([
+    listAccounts(),
     listEmployees(),
     listFiscalYears(),
   ]);
@@ -428,8 +340,8 @@ async function seedAssignments(): Promise<void> {
     fiscalYears.find((f) => f.isCurrent) ?? fiscalYears[fiscalYears.length - 1];
   if (!fy) return;
 
-  const customerByName = new Map(
-    customers.map((c) => [c.name.toLowerCase(), c.id])
+  const accountByName = new Map(
+    accounts.map((c) => [accountName(c).toLowerCase(), c.id])
   );
   const employeeByAlias = new Map(
     employees
@@ -438,7 +350,7 @@ async function seedAssignments(): Promise<void> {
   );
 
   for (const spec of ASSIGNMENT_SEED) {
-    const accountId = customerByName.get(spec.account.toLowerCase());
+    const accountId = accountByName.get(spec.account.toLowerCase());
     const employeeId = employeeByAlias.get(spec.alias.toLowerCase());
     if (!accountId || !employeeId) continue;
     await createEmployeeAssignment({
@@ -463,8 +375,7 @@ export async function ensureSeedData(): Promise<boolean> {
     const client = getRayfinClient();
     const [
       refRows,
-      customerRows,
-      productRows,
+      accountRows,
       fiscalYearRows,
       roleTypeRows,
       employeeRows,
@@ -472,8 +383,7 @@ export async function ensureSeedData(): Promise<boolean> {
       assignmentRows,
     ] = await Promise.all([
       client.data.ReferenceValue.findMany(),
-      client.data.Customer.findMany(),
-      client.data.Product.findMany(),
+      client.data.Account.findMany(),
       client.data.FiscalYear.findMany(),
       client.data.RoleType.findMany(),
       client.data.Employee.findMany(),
@@ -486,7 +396,7 @@ export async function ensureSeedData(): Promise<boolean> {
       await seedReference();
       seeded = true;
     }
-    if (customerRows.length === 0 && productRows.length === 0) {
+    if (accountRows.length === 0) {
       await seedMasterData();
       seeded = true;
     }

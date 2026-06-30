@@ -12,15 +12,15 @@ import {
  * proposed master-data change becomes the golden record.
  *
  * Polymorphic by design: `domain` + `recordId` point at the target master
- * record (Customer or Product) without a typed FK, because a single workflow
- * must span multiple domains.
+ * record (currently Account) without a typed FK, so a single workflow can span
+ * future master domains without a schema change.
  */
 @entity()
 @authenticated('*')
 export class ChangeRequest {
   @uuid() id!: string;
 
-  @set('customer', 'product') domain!: 'customer' | 'product';
+  @set('account') domain!: 'account';
 
   @set('create', 'update', 'merge', 'archive')
   changeType!: 'create' | 'update' | 'merge' | 'archive';

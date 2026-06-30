@@ -23,8 +23,7 @@ import {
 } from '@/components/ui';
 
 const DOMAIN_LABELS: Record<AuditDomain, string> = {
-  customer: 'Customer',
-  product: 'Product',
+  account: 'Account',
   reference: 'Reference',
   change_request: 'Change request',
   employee: 'Employee',

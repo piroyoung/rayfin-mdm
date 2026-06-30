@@ -6,11 +6,11 @@
  */
 import { assignmentScopeKey, findMultiplePrimaryGroups } from './assignments';
 import { detectCycles } from './hierarchy';
-import { findCustomerDuplicates } from './duplicates';
+import { findAccountDuplicates } from './duplicates';
 import type {
   AccountEmployeeAssignment,
   AccountTerritoryAssignment,
-  Customer,
+  Account,
   DataQualityIssue,
   Employee,
   IssueSeverity,
@@ -18,7 +18,7 @@ import type {
 } from './types';
 
 export interface QualitySnapshot {
-  accounts: Customer[];
+  accounts: Account[];
   employees: Employee[];
   territories: Territory[];
   employeeAssignments: AccountEmployeeAssignment[];
@@ -64,7 +64,10 @@ export function evaluateAssignmentQuality(
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const roleOf = (a: AccountEmployeeAssignment) => a.roleTypeCode;
   const accountLabel = (id: string) =>
-    accountById.get(id)?.name ?? accountById.get(id)?.customerCode ?? id;
+    accountById.get(id)?.nameDisplay ??
+    accountById.get(id)?.nameLegal ??
+    accountById.get(id)?.accountNumber ??
+    id;
 
   // ── Account-level: missing external id ──
   for (const a of accounts) {
@@ -75,13 +78,13 @@ export function evaluateAssignmentQuality(
         entityId: a.id,
         issueType: 'MISSING_ACCOUNT_ID',
         severity: 'medium',
-        description: `Account "${a.name}" has no MSSales or CRM account id.`,
+        description: `Account "${a.nameDisplay ?? a.nameLegal}" has no MSSales or CRM account id.`,
       });
     }
   }
 
   // ── Account-level: duplicate candidates ──
-  for (const group of findCustomerDuplicates(accounts)) {
+  for (const group of findAccountDuplicates(accounts)) {
     for (const rec of group.records) {
       findings.push({
         entityType: 'account',
