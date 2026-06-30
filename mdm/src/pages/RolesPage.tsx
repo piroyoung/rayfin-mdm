@@ -197,6 +197,7 @@ export function RolesPage() {
   );
   const [editing, setEditing] = useState<Role | null>(null);
   const [creating, setCreating] = useState(false);
+  const [seed, setSeed] = useState<RoleInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -226,6 +227,7 @@ export function RolesPage() {
       }
       setEditing(null);
       setCreating(false);
+      setSeed(null);
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed.', 'error');
@@ -258,6 +260,7 @@ export function RolesPage() {
               variant="primary"
               onClick={() => {
                 setEditing(null);
+                setSeed(null);
                 setCreating(true);
               }}
             >
@@ -362,11 +365,25 @@ export function RolesPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
+                              setSeed(null);
                               setCreating(false);
                               setEditing(r);
                             }}
                           >
                             Edit
+                          </Button>
+                        </Tooltip>
+                        <Tooltip label="この行をコピーして新しいロールを作成します">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditing(null);
+                              setSeed({ ...snapshot(r), code: '' });
+                              setCreating(true);
+                            }}
+                          >
+                            Copy
                           </Button>
                         </Tooltip>
                         <Tooltip
@@ -400,16 +417,20 @@ export function RolesPage() {
         onClose={() => {
           setCreating(false);
           setEditing(null);
+          setSeed(null);
         }}
-        title={editing ? `Edit ${editing.code}` : 'New role'}
+        title={
+          editing ? `Edit ${editing.code}` : seed ? 'New role (copy)' : 'New role'
+        }
         size="lg"
       >
         <RoleForm
-          initial={editing ? snapshot(editing) : EMPTY}
+          initial={editing ? snapshot(editing) : (seed ?? EMPTY)}
           saving={saving}
           onCancel={() => {
             setCreating(false);
             setEditing(null);
+            setSeed(null);
           }}
           onSubmit={handleSave}
         />

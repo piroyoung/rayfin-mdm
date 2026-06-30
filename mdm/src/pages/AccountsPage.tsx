@@ -288,6 +288,7 @@ export function AccountsPage() {
   const [statusFilter, setStatusFilter] = useState<RecordStatus | 'all'>('all');
   const [editing, setEditing] = useState<Account | null>(null);
   const [creating, setCreating] = useState(false);
+  const [seed, setSeed] = useState<AccountInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Account | null>(null);
@@ -330,6 +331,7 @@ export function AccountsPage() {
       }
       setEditing(null);
       setCreating(false);
+      setSeed(null);
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed.', 'error');
@@ -377,6 +379,7 @@ export function AccountsPage() {
               variant="primary"
               onClick={() => {
                 setEditing(null);
+                setSeed(null);
                 setCreating(true);
               }}
             >
@@ -522,6 +525,7 @@ export function AccountsPage() {
                               size="sm"
                               variant="ghost"
                               onClick={() => {
+                                setSeed(null);
                                 setCreating(false);
                                 setEditing(a);
                               }}
@@ -530,6 +534,19 @@ export function AccountsPage() {
                             </Button>
                           </Tooltip>
                         )}
+                        <Tooltip label="この行をコピーして新しいアカウントを作成します">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditing(null);
+                              setSeed({ ...snapshot(a), accountNumber: '' });
+                              setCreating(true);
+                            }}
+                          >
+                            Copy
+                          </Button>
+                        </Tooltip>
                         {(a.status === 'draft' || a.status === 'rejected') && (
                           <Tooltip label="このアカウントレコードを承認に提出します">
                             <Button
@@ -589,16 +606,24 @@ export function AccountsPage() {
         onClose={() => {
           setCreating(false);
           setEditing(null);
+          setSeed(null);
         }}
-        title={editing ? `Edit ${accountName(editing)}` : 'New account'}
+        title={
+          editing
+            ? `Edit ${accountName(editing)}`
+            : seed
+              ? 'New account (copy)'
+              : 'New account'
+        }
         size="lg"
       >
         <AccountForm
-          initial={editing ? snapshot(editing) : EMPTY}
+          initial={editing ? snapshot(editing) : (seed ?? EMPTY)}
           saving={saving}
           onCancel={() => {
             setCreating(false);
             setEditing(null);
+            setSeed(null);
           }}
           onSubmit={handleSave}
         />
