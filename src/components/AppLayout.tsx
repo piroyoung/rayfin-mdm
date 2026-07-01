@@ -6,7 +6,7 @@ import { useAuth } from '@/usecase/auth/auth-context';
 import { setCurrentActor } from '@/services/session';
 import { initials } from '@/lib/format';
 import { cn } from '@/lib/format';
-import { Button, Tooltip } from '@/components/ui';
+import { Button, Tooltip } from '@/components/shared';
 
 type IconName =
   | 'guide'

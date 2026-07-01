@@ -19,7 +19,7 @@ import {
 import { useAsyncData } from '@/usecase/shared/use-async-data';
 import { useToast } from '@/usecase/shared/toast-context';
 import { initials } from '@/lib/format';
-import { Badge, Button, Card } from '@/components/ui';
+import { Badge, Button, Card } from '@/components/shared';
 
 export function MyIdentityCard() {
   const { user } = useAuth();

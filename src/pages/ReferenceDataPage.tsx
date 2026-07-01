@@ -25,7 +25,7 @@ import {
   Select,
   Spinner,
   Tooltip,
-} from '@/components/ui';
+} from '@/components/shared';
 
 const EMPTY: ReferenceInput = {
   setName: '',

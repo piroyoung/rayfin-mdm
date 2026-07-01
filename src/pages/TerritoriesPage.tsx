@@ -22,14 +22,14 @@ import {
   PageHeader,
   Select,
   Tooltip,
-} from '@/components/ui';
+} from '@/components/shared';
 import {
   FormActions,
   ListCard,
   ListToolbar,
   RowActions,
   StatusBadge,
-} from '@/components/listing';
+} from '@/components/shared';
 
 interface TerritoryPageData {
   territories: Territory[];

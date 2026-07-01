@@ -38,7 +38,7 @@ import {
   Spinner,
   Textarea,
   Tooltip,
-} from '@/components/ui';
+} from '@/components/shared';
 
 function prettyPayload(payload?: string): string | null {
   if (!payload) return null;

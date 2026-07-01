@@ -23,7 +23,7 @@ import {
   Select,
   Textarea,
   Tooltip,
-} from '@/components/ui';
+} from '@/components/shared';
 import {
   ActiveFilter,
   FormActions,
@@ -31,7 +31,7 @@ import {
   ListToolbar,
   RowActions,
   StatusBadge,
-} from '@/components/listing';
+} from '@/components/shared';
 
 const EMPTY: RoleInput = {
   name: '',

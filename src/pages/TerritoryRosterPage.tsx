@@ -40,7 +40,7 @@ import {
   Select,
   Spinner,
   Tooltip,
-} from '@/components/ui';
+} from '@/components/shared';
 
 interface RefData {
   territories: Territory[];

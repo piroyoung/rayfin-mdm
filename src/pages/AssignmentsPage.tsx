@@ -47,7 +47,7 @@ import {
   PageHeader,
   Select,
   Spinner,
-} from '@/components/ui';
+} from '@/components/shared';
 
 interface RefData {
   accounts: Account[];

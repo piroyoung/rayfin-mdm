@@ -4,6 +4,8 @@
  * The score is persisted on each save (`qualityScore`) and surfaced in the UI.
  */
 
+import type { BadgeTone } from '@/domain/types';
+
 export interface QualityResult {
   /** 0-100 weighted completeness & validity score. */
   score: number;
@@ -79,4 +81,14 @@ export function qualityBand(score: number): 'high' | 'medium' | 'low' {
   if (score >= 80) return 'high';
   if (score >= 50) return 'medium';
   return 'low';
+}
+
+/**
+ * Badge tone for a quality score. Keeps the score→colour business rule in the
+ * domain so components (e.g. QualityBadge) never re-derive it from band or
+ * score literals.
+ */
+export function qualityTone(score: number): BadgeTone {
+  const band = qualityBand(score);
+  return band === 'high' ? 'green' : band === 'medium' ? 'amber' : 'red';
 }

@@ -41,13 +41,13 @@ import {
   QualityBadge,
   Select,
   Tooltip,
-} from '@/components/ui';
+} from '@/components/shared';
 import {
   FormActions,
   ListCard,
   ListToolbar,
   RowActions,
-} from '@/components/listing';
+} from '@/components/shared';
 
 const EMPTY: AccountInput = {
   accountNumber: '',

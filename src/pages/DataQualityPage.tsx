@@ -34,7 +34,7 @@ import {
   StatCard,
   Textarea,
   Tooltip,
-} from '@/components/ui';
+} from '@/components/shared';
 
 const SEVERITIES: IssueSeverity[] = ['critical', 'high', 'medium', 'low'];
 

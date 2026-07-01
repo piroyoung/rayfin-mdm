@@ -27,7 +27,7 @@ import {
   PageHeader,
   Select,
   Tooltip,
-} from '@/components/ui';
+} from '@/components/shared';
 import {
   ActiveFilter,
   FormActions,
@@ -35,7 +35,7 @@ import {
   ListToolbar,
   RowActions,
   StatusBadge,
-} from '@/components/listing';
+} from '@/components/shared';
 
 const EMPTY: EmployeeInput = { displayName: '' };
 

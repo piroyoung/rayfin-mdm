@@ -29,7 +29,7 @@ import {
   ProgressBar,
   Spinner,
   StatCard,
-} from '@/components/ui';
+} from '@/components/shared';
 
 interface DashboardData {
   accounts: Account[];

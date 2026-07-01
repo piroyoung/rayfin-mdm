@@ -16,7 +16,7 @@ import {
   PageHeader,
   StatCard,
   Textarea,
-} from '@/components/ui';
+} from '@/components/shared';
 import { useToast } from '@/usecase/shared/toast-context';
 import { SAMPLE_INGEST_SHEET } from '@/domain/ingest';
 import {

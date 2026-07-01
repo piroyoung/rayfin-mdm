@@ -20,7 +20,7 @@ import {
   PageHeader,
   Select,
   Spinner,
-} from '@/components/ui';
+} from '@/components/shared';
 
 const DOMAIN_LABELS: Record<AuditDomain, string> = {
   account: 'Account',

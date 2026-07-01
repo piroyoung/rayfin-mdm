@@ -35,8 +35,8 @@ import {
   PageHeader,
   Select,
   Tooltip,
-} from '@/components/ui';
-import { FormActions, ListCard, RowActions } from '@/components/listing';
+} from '@/components/shared';
+import { FormActions, ListCard, RowActions } from '@/components/shared';
 
 interface PageData {
   rows: TerritoryRoleAssignment[];
