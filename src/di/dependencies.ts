@@ -10,10 +10,13 @@
  */
 import type { ActorContext } from '@/domain/ports/actor-context';
 import type { AuditLog } from '@/domain/ports/audit-log';
+import type { RoleRepository } from '@/domain/repositories/role-repository';
 
 export interface AppDependencies {
   /** Current actor for stewardship stamping and audit attribution. */
   actor: ActorContext;
   /** Immutable audit trail. */
   audit: AuditLog;
+  /** Role master catalogue. */
+  roles: RoleRepository;
 }

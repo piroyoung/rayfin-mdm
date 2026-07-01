@@ -1,23 +1,17 @@
-/** Role master service: CRUD for the single role catalogue. */
+/**
+ * Role master service (legacy staging shim). Retained for un-migrated consumers
+ * (seed, roster/stewardship/assignment pages, projection test) until each
+ * migrates onto {@link RoleRepository}. Shares the business-key policy and the
+ * `RoleInput` contract with the domain layer so there is no drift.
+ */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
+import { nextUniqueRoleCode } from '@/domain/policies/role-code';
 import type { Role } from '@/domain/types';
 
-export interface RoleInput {
-  /** Optional: auto-generated from `name` when omitted (UI never sets it). */
-  code?: string;
-  name: string;
-  description?: string;
-  orgUnit?: string;
-  solutionArea?: string;
-  subArea?: string;
-  roleFamily?: string;
-  isAccountAssignable?: boolean;
-  isTerritoryAssignable?: boolean;
-  sortOrder?: number;
-  isActive?: boolean;
-}
+export type { RoleInput } from '@/domain/repositories/role-repository';
+import type { RoleInput } from '@/domain/repositories/role-repository';
 
 function roles() {
   return getRayfinClient().data.Role;
@@ -62,37 +56,10 @@ export function getRole(id: string): Promise<Role | null> {
     .findFirst();
 }
 
-/** Slugify a role name into an uppercase business-key stem. */
-function slugifyRoleCode(name: string): string {
-  const base = (name ?? '')
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 48);
-  return base || 'ROLE';
-}
-
-/**
- * Build a unique `code` from a role name. `code` is the system join key
- * (Employee/TerritoryRoleAssignment reference it), so it must stay unique even
- * though users no longer type it — duplicate copies get a numeric suffix.
- */
-async function generateUniqueRoleCode(name: string): Promise<string> {
-  const base = slugifyRoleCode(name);
-  const taken = new Set((await listRoles()).map((r) => r.code));
-  if (!taken.has(base)) return base;
-  for (let i = 2; i < 10000; i += 1) {
-    const candidate = `${base}_${i}`;
-    if (!taken.has(candidate)) return candidate;
-  }
-  return `${base}_${Date.now()}`;
-}
-
 export async function createRole(input: RoleInput): Promise<Role> {
   const code = input.code?.trim()
     ? input.code.trim()
-    : await generateUniqueRoleCode(input.name);
+    : nextUniqueRoleCode(input.name, (await listRoles()).map((r) => r.code));
   const created = await roles().create({
     code,
     name: input.name,

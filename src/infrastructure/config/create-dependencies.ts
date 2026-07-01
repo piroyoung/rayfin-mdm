@@ -6,6 +6,7 @@
 import type { AppDependencies } from '@/di/dependencies';
 import { SessionActorContext } from '@/infrastructure/auth/session-actor-context';
 import { RayfinAuditLog } from '@/infrastructure/data/rayfin-audit-log';
+import { RayfinRoleRepository } from '@/infrastructure/data/rayfin-role-repository';
 import type { RayfinClientFacade } from '@/infrastructure/rayfin/client';
 
 export function createDependencies(
@@ -13,5 +14,6 @@ export function createDependencies(
 ): AppDependencies {
   const actor = new SessionActorContext(client);
   const audit = new RayfinAuditLog(client, actor);
-  return { actor, audit };
+  const roles = new RayfinRoleRepository(client, actor);
+  return { actor, audit, roles };
 }
