@@ -4,15 +4,8 @@ import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
 import type { FiscalYear } from '@/domain/types';
 
-export interface FiscalYearInput {
-  code: string;
-  name: string;
-  startDate: Date;
-  endDate: Date;
-  isCurrent?: boolean;
-  isPlanningYear?: boolean;
-  sortOrder?: number;
-}
+export type { FiscalYearInput } from '@/domain/repositories/fiscal-year-repository';
+import type { FiscalYearInput } from '@/domain/repositories/fiscal-year-repository';
 
 function fiscalYears() {
   return getRayfinClient().data.FiscalYear;

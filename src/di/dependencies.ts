@@ -10,6 +10,7 @@
  */
 import type { ActorContext } from '@/domain/ports/actor-context';
 import type { AuditLog } from '@/domain/ports/audit-log';
+import type { FiscalYearRepository } from '@/domain/repositories/fiscal-year-repository';
 import type { ReferenceRepository } from '@/domain/repositories/reference-repository';
 import type { RoleRepository } from '@/domain/repositories/role-repository';
 
@@ -22,4 +23,6 @@ export interface AppDependencies {
   roles: RoleRepository;
   /** Governed reference code lists. */
   reference: ReferenceRepository;
+  /** Fiscal-year master (drives the current operating year). */
+  fiscalYears: FiscalYearRepository;
 }
