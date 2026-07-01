@@ -3,8 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AuthPage } from '@/components/AuthPage';
 import { AppLayout } from '@/components/AppLayout';
-import { useAuth } from '@/hooks/AuthContext';
-import { ToastProvider } from '@/hooks/useToast';
+import { useAuth } from '@/usecase/auth/auth-context';
+import { ToastProvider } from '@/usecase/shared/ToastProvider';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { GuidePage } from '@/pages/GuidePage';
 import { AccountsPage } from '@/pages/AccountsPage';

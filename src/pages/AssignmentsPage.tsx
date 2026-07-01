@@ -19,8 +19,8 @@ import {
   listTerritoryAssignmentsForAccount,
   setTerritoryAssignmentStatus,
 } from '@/services/assignments';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useToast } from '@/hooks/useToast';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useToast } from '@/usecase/shared/toast-context';
 import { canTransition } from '@/domain/assignmentWorkflow';
 import {
   currentTerritoryIdsForAccount,

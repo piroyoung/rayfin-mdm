@@ -7,9 +7,9 @@ import {
   updateRole,
   type RoleInput,
 } from '@/services/roles';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useCrudForm } from '@/hooks/useCrudForm';
-import { useToast } from '@/hooks/useToast';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useCrudForm } from '@/usecase/shared/use-crud-form';
+import { useToast } from '@/usecase/shared/toast-context';
 import { fmtRelative } from '@/lib/format';
 import { matchesActive, type ActiveFilterValue } from '@/lib/listing';
 import type { Role } from '@/domain/types';

@@ -1,32 +1,25 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
 
-import { type AuthUser, type IAuthService } from '@/services/IAuthService';
+import type { AuthService, AuthUser } from '@/domain/ports/auth-service';
 
-interface AuthContextValue {
-  user: AuthUser | null;
-  loading: boolean;
-  error: string | null;
-  signIn: () => Promise<AuthUser>;
-  signOut: () => Promise<void>;
-  isAuthenticated: boolean;
-  fabricAuthEnabled: boolean;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import { AuthContext, type AuthContextValue } from './auth-context';
 
 interface AuthProviderProps {
   children: ReactNode;
-  authService: IAuthService;
+  authService: AuthService;
 }
 
+/**
+ * Owns the authentication view state (current user, loading, error) and adapts
+ * the injected {@link AuthService} port into the {@link AuthContextValue} the UI
+ * consumes through `useAuth`. The service is injected, never constructed here.
+ */
 export function AuthProvider({ children, authService }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,12 +84,4 @@ export function AuthProvider({ children, authService }: AuthProviderProps) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

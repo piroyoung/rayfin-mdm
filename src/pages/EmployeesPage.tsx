@@ -11,10 +11,10 @@ import {
 } from '@/services/employees';
 import { listRoles } from '@/services/roles';
 import { employeeInputFromUser } from '@/services/identity';
-import { useAuth } from '@/hooks/AuthContext';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useCrudForm } from '@/hooks/useCrudForm';
-import { useToast } from '@/hooks/useToast';
+import { useAuth } from '@/usecase/auth/auth-context';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useCrudForm } from '@/usecase/shared/use-crud-form';
+import { useToast } from '@/usecase/shared/toast-context';
 import { fmtRelative } from '@/lib/format';
 import { matchesActive, type ActiveFilterValue } from '@/lib/listing';
 import type { Employee, Role } from '@/domain/types';

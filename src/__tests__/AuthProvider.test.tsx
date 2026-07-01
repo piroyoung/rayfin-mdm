@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { AuthProvider } from '@/hooks/AuthContext';
-import type { IAuthService } from '@/services/IAuthService';
+import { AuthProvider } from '@/usecase/auth/AuthProvider';
+import type { AuthService } from '@/domain/ports/auth-service';
 
-const stubAuthService: IAuthService = {
+const stubAuthService: AuthService = {
   fabricAuthEnabled: false,
   async signIn() {
     return { id: 'u1', email: 'dev@contoso.com', name: 'dev' };

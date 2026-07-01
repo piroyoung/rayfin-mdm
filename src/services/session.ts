@@ -3,7 +3,7 @@
  * stamping, without coupling the service layer to React. `AppLayout` keeps this
  * in sync with `useAuth()`.
  */
-import type { AuthUser } from '@/services/IAuthService';
+import type { AuthUser } from '@/domain/ports/auth-service';
 
 let current: AuthUser | null = null;
 

@@ -1,8 +1,9 @@
-import { AuthError, type RayfinClient } from '@microsoft/rayfin-client';
+import { AuthError } from '@microsoft/rayfin-client';
 
-import type { MdmSchema } from '../../rayfin/data/schema';
+import type { AuthService, AuthUser } from '@/domain/ports/auth-service';
+import type { RayfinClientFacade } from '@/infrastructure/rayfin/client';
 
-import { type AuthUser, type IAuthService, toAuthUser } from './IAuthService';
+import { toAuthUser } from './to-auth-user';
 
 // Local-dev fixture credentials. The bundled local backend ships without
 // Fabric/Entra, so this auth service signs in with a shared dev account.
@@ -12,16 +13,17 @@ const MOCK_EMAIL = 'dev@contoso.com';
 const MOCK_PASSWORD = 'LocalDev!Pass123';
 
 /**
- * Local-development auth service. Used when the API URL targets localhost.
+ * Local-development auth adapter. Chosen by the composition root when the API
+ * URL targets localhost.
  *
  * Signs into the bundled local backend with a fixed email/password — no
- * Fabric/Entra wiring required. If the dev account does not exist yet on
- * the local backend, it is created on first sign-in.
+ * Fabric/Entra wiring required. If the dev account does not exist yet on the
+ * local backend, it is created on first sign-in.
  */
-export class MockAuthService implements IAuthService {
+export class MockAuthService implements AuthService {
   readonly fabricAuthEnabled = false;
 
-  constructor(private readonly client: RayfinClient<MdmSchema>) {}
+  constructor(private readonly client: RayfinClientFacade) {}
 
   async signIn(): Promise<AuthUser> {
     const auth = this.client.auth;

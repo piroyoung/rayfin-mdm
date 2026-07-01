@@ -1,24 +1,17 @@
 /** Lightweight toast notifications. */
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 
-type ToastTone = 'success' | 'error' | 'info';
+import {
+  ToastContext,
+  type ToastFn,
+  type ToastTone,
+} from './toast-context';
 
 interface ToastItem {
   id: number;
   message: string;
   tone: ToastTone;
 }
-
-type ToastFn = (message: string, tone?: ToastTone) => void;
-
-const ToastContext = createContext<ToastFn | undefined>(undefined);
 
 const TONE_CLASS: Record<ToastTone, string> = {
   success: 'border-green-200 bg-green-50 text-green-800',
@@ -54,10 +47,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   );
-}
-
-export function useToast(): ToastFn {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used within a ToastProvider');
-  return ctx;
 }

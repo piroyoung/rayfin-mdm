@@ -8,8 +8,8 @@ import {
   runAssignmentQualityChecks,
   startDataQualityIssue,
 } from '@/services/dataQuality';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useToast } from '@/hooks/useToast';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useToast } from '@/usecase/shared/toast-context';
 import { fmtRelative } from '@/lib/format';
 import {
   ISSUE_TYPE_META,

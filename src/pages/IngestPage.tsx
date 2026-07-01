@@ -17,7 +17,7 @@ import {
   StatCard,
   Textarea,
 } from '@/components/ui';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/usecase/shared/toast-context';
 import { SAMPLE_INGEST_SHEET } from '@/domain/ingest';
 import {
   commitIngest,

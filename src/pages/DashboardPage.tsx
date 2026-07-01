@@ -18,7 +18,7 @@ import {
   type Account,
   type DataQualityIssue,
 } from '@/domain/types';
-import { useAsyncData } from '@/hooks/useAsyncData';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
 import { fmtRelative } from '@/lib/format';
 import { MyIdentityCard } from '@/components/MyIdentityCard';
 import {

@@ -10,8 +10,8 @@ import {
   type ReferenceInput,
 } from '@/services/reference';
 import type { ReferenceValue } from '@/domain/types';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useToast } from '@/hooks/useToast';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useToast } from '@/usecase/shared/toast-context';
 import {
   Badge,
   Button,

@@ -9,15 +9,15 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { useAuth } from '@/hooks/AuthContext';
+import { useAuth } from '@/usecase/auth/auth-context';
 import { listEmployees } from '@/services/employees';
 import {
   linkEmployeeToUser,
   matchEmployeeToUser,
   provisionEmployeeFromUser,
 } from '@/services/identity';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useToast } from '@/hooks/useToast';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useToast } from '@/usecase/shared/toast-context';
 import { initials } from '@/lib/format';
 import { Badge, Button, Card } from '@/components/ui';
 

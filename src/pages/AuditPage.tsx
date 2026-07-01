@@ -10,7 +10,7 @@ import {
   type AuditDomain,
   type AuditEvent,
 } from '@/domain/types';
-import { useAsyncData } from '@/hooks/useAsyncData';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
 import { fmtDateTime } from '@/lib/format';
 import {
   Badge,

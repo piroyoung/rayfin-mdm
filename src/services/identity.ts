@@ -11,7 +11,7 @@
  * It does not expose a tenant directory, so there is intentionally no
  * "search any colleague" lookup here — that would require Microsoft Graph.
  */
-import type { AuthUser } from '@/services/IAuthService';
+import type { AuthUser } from '@/domain/ports/auth-service';
 import type { Employee } from '@/domain/types';
 import {
   createEmployee,

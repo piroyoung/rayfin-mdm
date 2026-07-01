@@ -16,8 +16,8 @@ import {
   setSeatMember,
   setTerritoryRoleStatus,
 } from '@/services/territoryRoleAssignments';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useToast } from '@/hooks/useToast';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useToast } from '@/usecase/shared/toast-context';
 import { territoryRoleScopeKey } from '@/domain/territoryRoster';
 import { canTransition, workflowActions } from '@/domain/assignmentWorkflow';
 import {

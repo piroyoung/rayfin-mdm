@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
-import { useAuth } from '@/hooks/AuthContext';
+import { useAuth } from '@/usecase/auth/auth-context';
 import { setCurrentActor } from '@/services/session';
 import { initials } from '@/lib/format';
 import { cn } from '@/lib/format';

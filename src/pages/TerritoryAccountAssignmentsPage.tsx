@@ -11,9 +11,9 @@ import {
   setTerritoryAssignmentStatus,
   type TerritoryAssignmentInput,
 } from '@/services/assignments';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useCrudForm } from '@/hooks/useCrudForm';
-import { useToast } from '@/hooks/useToast';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useCrudForm } from '@/usecase/shared/use-crud-form';
+import { useToast } from '@/usecase/shared/toast-context';
 import { lookupFn } from '@/lib/listing';
 import { workflowActions } from '@/domain/assignmentWorkflow';
 import {

@@ -3,25 +3,25 @@ import {
   initEmbeddedAuth as sdkInitEmbeddedAuth,
   type FabricAuthOptions,
 } from '@microsoft/rayfin-auth-provider-fabric';
-import type { RayfinClient } from '@microsoft/rayfin-client';
 
-import type { MdmSchema } from '../../rayfin/data/schema';
+import type { AuthService, AuthUser } from '@/domain/ports/auth-service';
+import type { RayfinClientFacade } from '@/infrastructure/rayfin/client';
 
-import { type AuthUser, type IAuthService, toAuthUser } from './IAuthService';
+import { toAuthUser } from './to-auth-user';
 
 /**
- * Production auth service. Wraps the Fabric brokered authentication SDK
+ * Production auth adapter. Wraps the Fabric brokered authentication SDK
  * (`@microsoft/rayfin-auth-provider-fabric`).
  *
- * Used whenever the API URL is not localhost. Requires Fabric workspace,
- * project, and portal config to be passed at construction time — see
- * `bootstrapAuth()` for how those are read from VITE_FABRIC_* env vars.
+ * Chosen by the composition root whenever the API URL is not localhost.
+ * Requires Fabric workspace, project, and portal config, resolved once in
+ * `src/infrastructure/config/`.
  */
-export class RayfinAuthService implements IAuthService {
+export class RayfinAuthService implements AuthService {
   readonly fabricAuthEnabled = true;
 
   constructor(
-    private readonly client: RayfinClient<MdmSchema>,
+    private readonly client: RayfinClientFacade,
     private readonly fabricOptions: FabricAuthOptions
   ) {}
 

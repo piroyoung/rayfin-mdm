@@ -9,9 +9,9 @@ import {
   type TerritoryInput,
 } from '@/services/territories';
 import { listFiscalYears } from '@/services/fiscalYears';
-import { useAsyncData } from '@/hooks/useAsyncData';
-import { useCrudForm } from '@/hooks/useCrudForm';
-import { useToast } from '@/hooks/useToast';
+import { useAsyncData } from '@/usecase/shared/use-async-data';
+import { useCrudForm } from '@/usecase/shared/use-crud-form';
+import { useToast } from '@/usecase/shared/toast-context';
 import { lookupFn } from '@/lib/listing';
 import type { FiscalYear, Territory } from '@/domain/types';
 import {
