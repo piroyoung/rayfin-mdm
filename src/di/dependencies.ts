@@ -10,6 +10,7 @@
  */
 import type { ActorContext } from '@/domain/ports/actor-context';
 import type { AuditLog } from '@/domain/ports/audit-log';
+import type { ReferenceRepository } from '@/domain/repositories/reference-repository';
 import type { RoleRepository } from '@/domain/repositories/role-repository';
 
 export interface AppDependencies {
@@ -19,4 +20,6 @@ export interface AppDependencies {
   audit: AuditLog;
   /** Role master catalogue. */
   roles: RoleRepository;
+  /** Governed reference code lists. */
+  reference: ReferenceRepository;
 }
