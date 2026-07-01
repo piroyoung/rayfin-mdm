@@ -1,29 +1,20 @@
 /**
- * Stewardship workflow. A change request is the approval ticket that gates a
- * proposed master-data change. Submitting one moves the target record to
- * `pending_approval`; approving it applies the change (promote to golden, or
- * archive); rejecting it sends the record back to `rejected`.
+ * Stewardship workflow — backlog shim (approval queue).
+ *
+ * The submit-for-approval path now lives in `usecase/stewardship/
+ * submit-change-request.ts` behind the {@link ChangeRequestRepository} +
+ * {@link AccountRepository} ports and is consumed by the migrated Accounts
+ * screen. This file stays for the not-yet-migrated Stewardship and Dashboard
+ * pages (list/approve/reject) and re-exports the canonical input type from the
+ * port so there is no drift.
  */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
 import { getAccount, setAccountStatus } from '@/services/accounts';
-import type {
-  ChangeRequest,
-  ChangeType,
-  MasterDomain,
-} from '@/domain/types';
+import type { ChangeRequest, MasterDomain } from '@/domain/types';
 
-export interface ChangeRequestInput {
-  domain: MasterDomain;
-  changeType: ChangeType;
-  recordId?: string;
-  recordLabel?: string;
-  /** Snapshot of proposed field values, shown to the reviewer. */
-  payload?: unknown;
-  mergeTargetId?: string;
-  reason?: string;
-}
+export type { ChangeRequestInput } from '@/domain/repositories/change-request-repository';
 
 function changeRequests() {
   return getRayfinClient().data.ChangeRequest;
@@ -55,40 +46,6 @@ export async function listChangeRequests(): Promise<ChangeRequest[]> {
   return [...rows].sort(
     (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)
   );
-}
-
-/** Raise a change request and move the target record to `pending_approval`. */
-export async function submitChangeRequest(
-  input: ChangeRequestInput
-): Promise<ChangeRequest> {
-  const created = await changeRequests().create({
-    domain: input.domain,
-    changeType: input.changeType,
-    recordId: input.recordId,
-    recordLabel: input.recordLabel?.slice(0, 200),
-    payload:
-      input.payload == null
-        ? undefined
-        : JSON.stringify(input.payload).slice(0, 4000),
-    mergeTargetId: input.mergeTargetId,
-    status: 'open',
-    reason: input.reason?.slice(0, 1000),
-    requestedBy: actorId(),
-    createdAt: new Date(),
-  });
-
-  if (input.recordId) {
-    await moveTarget(input.domain, input.recordId, 'pending_approval');
-  }
-  await logAudit({
-    domain: 'change_request',
-    action: 'submit',
-    recordId: created.id,
-    recordLabel: input.recordLabel,
-    summary: `Submitted ${input.changeType} request for ${input.domain}`,
-    details: input.reason,
-  });
-  return created;
 }
 
 async function moveTarget(

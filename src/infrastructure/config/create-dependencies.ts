@@ -5,7 +5,9 @@
  */
 import type { AppDependencies } from '@/di/dependencies';
 import { SessionActorContext } from '@/infrastructure/auth/session-actor-context';
+import { RayfinAccountRepository } from '@/infrastructure/data/rayfin-account-repository';
 import { RayfinAuditLog } from '@/infrastructure/data/rayfin-audit-log';
+import { RayfinChangeRequestRepository } from '@/infrastructure/data/rayfin-change-request-repository';
 import { RayfinEmployeeRepository } from '@/infrastructure/data/rayfin-employee-repository';
 import { RayfinFiscalYearRepository } from '@/infrastructure/data/rayfin-fiscal-year-repository';
 import { RayfinReferenceRepository } from '@/infrastructure/data/rayfin-reference-repository';
@@ -21,5 +23,16 @@ export function createDependencies(
   const reference = new RayfinReferenceRepository(client, actor);
   const fiscalYears = new RayfinFiscalYearRepository(client, actor);
   const employees = new RayfinEmployeeRepository(client, actor);
-  return { actor, audit, roles, reference, fiscalYears, employees };
+  const accounts = new RayfinAccountRepository(client, actor);
+  const changeRequests = new RayfinChangeRequestRepository(client, actor);
+  return {
+    actor,
+    audit,
+    roles,
+    reference,
+    fiscalYears,
+    employees,
+    accounts,
+    changeRequests,
+  };
 }
