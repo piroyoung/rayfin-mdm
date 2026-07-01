@@ -11,7 +11,7 @@ import {
   type PrimaryScopeRow,
 } from '@/domain/assignments';
 import { detectCycles, wouldCreateCycle } from '@/domain/hierarchy';
-import { findEmployeeIdentityConflicts } from '@/services/employees';
+import { findEmployeeIdentityConflicts } from '@/domain/policies/employee-conflicts';
 import type { Employee } from '@/domain/types';
 
 const row = (over: Partial<PrimaryScopeRow> & { id: string }): PrimaryScopeRow => ({

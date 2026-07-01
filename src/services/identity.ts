@@ -1,76 +1,32 @@
 /**
- * Entra identity helpers.
+ * Entra identity helpers — backlog shim.
  *
- * Every employee is a user in this Entra tenant, so the signed-in user — whose
- * identity is brokered into the app by Fabric auth (`AuthUser`) — can be matched
- * to, linked to, or used to provision their own {@link Employee} row. The
- * durable key is the Entra object id (oid), carried as `AuthUser.id` and stored
- * on `Employee.entraObjectId`; alias / upn / email can change, the oid does not.
+ * The pure identity-resolution rules now live in
+ * `@/domain/policies/employee-identity` (imported by the Employees use case and
+ * re-exported here for not-yet-migrated callers such as `MyIdentityCard`). The
+ * two write operations below still delegate to the legacy employee service, so
+ * they stay here until the identity/stewardship screen is migrated.
  *
  * Scope note: the Rayfin/Fabric SDK federates only the *current* signed-in user.
  * It does not expose a tenant directory, so there is intentionally no
  * "search any colleague" lookup here — that would require Microsoft Graph.
  */
 import type { AuthUser } from '@/domain/ports/auth-service';
-import type { Employee } from '@/domain/types';
 import {
-  createEmployee,
-  updateEmployee,
-  toEmployeeInput,
-  type EmployeeInput,
-} from '@/services/employees';
+  aliasFromIdentity,
+  employeeInputFromUser,
+  matchEmployeeToUser,
+  type IdentityMatch,
+} from '@/domain/policies/employee-identity';
+import type { Employee } from '@/domain/types';
+import { createEmployee, updateEmployee, toEmployeeInput } from '@/services/employees';
 
-const norm = (v?: string | null) => (v ?? '').trim().toLowerCase();
-
-/** Resolution of the signed-in user against the employee master. */
-export type IdentityMatch =
-  /** Matched on the durable Entra oid — fully linked. */
-  | { kind: 'linked'; employee: Employee }
-  /** Matched on upn / email, but the durable oid is not stored yet. */
-  | { kind: 'unlinked'; employee: Employee }
-  /** No employee row represents this user. */
-  | { kind: 'none' };
-
-/** Upper-cased local part of the sign-in address, matching workbook aliases. */
-export function aliasFromIdentity(user: AuthUser): string | undefined {
-  const local = (user.email || '').split('@')[0];
-  return local ? local.toUpperCase() : undefined;
-}
-
-/**
- * Pure: resolve the signed-in user to their employee row.
- * Priority: durable oid → upn → email.
- */
-export function matchEmployeeToUser(
-  user: AuthUser,
-  rows: Employee[]
-): IdentityMatch {
-  const oid = norm(user.id);
-  if (oid) {
-    const byOid = rows.find((r) => norm(r.entraObjectId) === oid);
-    if (byOid) return { kind: 'linked', employee: byOid };
-  }
-  const mail = norm(user.email);
-  if (mail) {
-    const byUpn = rows.find((r) => norm(r.upn) === mail);
-    if (byUpn) return { kind: 'unlinked', employee: byUpn };
-    const byEmail = rows.find((r) => norm(r.email) === mail);
-    if (byEmail) return { kind: 'unlinked', employee: byEmail };
-  }
-  return { kind: 'none' };
-}
-
-/** Build a create/edit input prefilled from the signed-in identity. */
-export function employeeInputFromUser(user: AuthUser): EmployeeInput {
-  return {
-    displayName: user.name || user.email || 'New employee',
-    email: user.email || undefined,
-    upn: user.email || undefined,
-    alias: aliasFromIdentity(user),
-    entraObjectId: user.id || undefined,
-    isActive: true,
-  };
-}
+export {
+  aliasFromIdentity,
+  employeeInputFromUser,
+  matchEmployeeToUser,
+  type IdentityMatch,
+};
 
 /**
  * Back-fill the durable Entra oid (and upn / email if missing) onto an existing
