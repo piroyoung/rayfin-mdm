@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rayfin Clean Architecture"
+  short_description: "Own Rayfin app-code architecture, layer boundaries, design patterns, UI structure, and verification"
+  default_prompt: "Use $rayfin-clean-architecture when the work is primarily Rayfin SDK app structure under src/, RayfinClient/client.data access through repository ports and adapters, composition root and dependency injection, declarative react-router-dom routing, client use cases, domain models, Tailwind UI, charts, Playwright verification, or app-structure refactoring. Defer the Rayfin data model (@entity decorators, @role/RLS), auth methods, CLI, schema migration, and Fabric deployment to the bundled `rayfin` skill and its MCP tools. Do not use it for choosing a database engine or for platform/deployment concerns."
