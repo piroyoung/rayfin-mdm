@@ -1,4 +1,0 @@
-interface:
-  display_name: "React Router App Architecture"
-  short_description: "Own app-code architecture, route boundaries, UI structure, and verification for this Rayfin-backed React SPA"
-  default_prompt: "Use $react-router-app-architecture when the work is primarily React Router (declarative) routes and pages, component boundaries, view-state hooks, domain models/types, the Rayfin data-access layer in src/services, Tailwind + ui.tsx screens, responsive UI, charts, Vitest/Testing Library verification, or app-structure refactoring in mdm/src. It defers to the $rayfin skill: for anything about Rayfin entities/schema (rayfin/data), the Rayfin client and data API, decorators, auth/roles/policies, deployment (rayfin up), or backend modeling, follow $rayfin first. Do not use this skill for Rayfin platform/schema setup, end-user auth contract design, or release/deployment mechanics."

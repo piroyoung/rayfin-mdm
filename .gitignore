@@ -111,3 +111,29 @@ dist
 
 # TernJS port file
 .tern-port
+
+# ── Project-specific (Vite + Rayfin) ──
+pnpm-debug.log*
+
+# Vite build output
+dist-ssr
+.vite
+
+# Local env files (`*.local` matches `.env.local`, `.env.*.local`, etc.)
+*.local
+
+# Rayfin — auto-generated or secret-bearing files
+# `rayfin/.env*` covers .env, .env.bak (emitted by env-file v2 migration with
+# secrets), and any future .env-family files Rayfin's runtime adds.
+rayfin/.env*
+rayfin/.deployments.json
+rayfin/.temp/
+
+# Editor / OS
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
