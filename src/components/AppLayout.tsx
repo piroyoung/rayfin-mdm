@@ -1,9 +1,8 @@
-/** App shell: sidebar navigation, header, and current-actor wiring. */
+/** App shell: sidebar navigation and header. */
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '@/usecase/auth/auth-context';
-import { setCurrentActor } from '@/services/session';
 import { initials } from '@/lib/format';
 import { cn } from '@/lib/format';
 import { Button, Tooltip } from '@/components/shared';
@@ -282,10 +281,6 @@ function MobileNav() {
 
 export function AppLayout() {
   const { user, signOut } = useAuth();
-
-  useEffect(() => {
-    setCurrentActor(user);
-  }, [user]);
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-900">

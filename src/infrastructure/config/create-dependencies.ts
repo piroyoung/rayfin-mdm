@@ -17,6 +17,7 @@ import { RayfinSourceXrefRepository } from '@/infrastructure/data/rayfin-source-
 import { RayfinTerritoryRepository } from '@/infrastructure/data/rayfin-territory-repository';
 import { RayfinTerritoryAccountAssignmentRepository } from '@/infrastructure/data/rayfin-territory-account-assignment-repository';
 import { RayfinTerritoryRoleAssignmentRepository } from '@/infrastructure/data/rayfin-territory-role-assignment-repository';
+import { LegacyActorSink } from '@/infrastructure/config/legacy-actor-sink';
 import { LegacySeedService } from '@/infrastructure/config/legacy-seed-service';
 import type { RayfinClientFacade } from '@/infrastructure/rayfin/client';
 
@@ -24,6 +25,7 @@ export function createDependencies(
   client: RayfinClientFacade
 ): AppDependencies {
   const actor = new SessionActorContext(client);
+  const actorSink = new LegacyActorSink();
   const audit = new RayfinAuditLog(client, actor);
   const roles = new RayfinRoleRepository(client, actor);
   const reference = new RayfinReferenceRepository(client, actor);
@@ -43,6 +45,7 @@ export function createDependencies(
   const seed = new LegacySeedService();
   return {
     actor,
+    actorSink,
     audit,
     roles,
     reference,

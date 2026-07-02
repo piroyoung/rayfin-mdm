@@ -9,6 +9,7 @@
  * migrated feature.
  */
 import type { ActorContext } from '@/domain/ports/actor-context';
+import type { ActorSink } from '@/domain/ports/actor-sink';
 import type { AuditLog } from '@/domain/ports/audit-log';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { ChangeRequestRepository } from '@/domain/repositories/change-request-repository';
@@ -26,6 +27,12 @@ import type { TerritoryRoleAssignmentRepository } from '@/domain/repositories/te
 export interface AppDependencies {
   /** Current actor for stewardship stamping and audit attribution. */
   actor: ActorContext;
+  /**
+   * Publishes the signed-in actor to legacy backlog services (the one seam that
+   * still feeds `services/session`). Kept behind a port so no migrated-layer
+   * file reaches the module singleton directly.
+   */
+  actorSink: ActorSink;
   /** Immutable audit trail. */
   audit: AuditLog;
   /** Role master catalogue. */

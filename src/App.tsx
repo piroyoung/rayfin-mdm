@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AuthPage } from '@/components/AuthPage';
 import { AppLayout } from '@/components/AppLayout';
+import { LegacyActorSync } from '@/di/LegacyActorSync';
 import { useAuth } from '@/usecase/auth/auth-context';
 import { ToastProvider } from '@/usecase/shared/ToastProvider';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -47,6 +48,7 @@ function AuthGuard({
 function App() {
   return (
     <ToastProvider>
+      <LegacyActorSync />
       <BrowserRouter>
         <Routes>
           <Route
