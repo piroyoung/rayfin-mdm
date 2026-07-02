@@ -12,6 +12,7 @@ import { RayfinEmployeeRepository } from '@/infrastructure/data/rayfin-employee-
 import { RayfinFiscalYearRepository } from '@/infrastructure/data/rayfin-fiscal-year-repository';
 import { RayfinReferenceRepository } from '@/infrastructure/data/rayfin-reference-repository';
 import { RayfinRoleRepository } from '@/infrastructure/data/rayfin-role-repository';
+import { RayfinTerritoryRepository } from '@/infrastructure/data/rayfin-territory-repository';
 import type { RayfinClientFacade } from '@/infrastructure/rayfin/client';
 
 export function createDependencies(
@@ -23,6 +24,7 @@ export function createDependencies(
   const reference = new RayfinReferenceRepository(client, actor);
   const fiscalYears = new RayfinFiscalYearRepository(client, actor);
   const employees = new RayfinEmployeeRepository(client, actor);
+  const territories = new RayfinTerritoryRepository(client, actor);
   const accounts = new RayfinAccountRepository(client, actor);
   const changeRequests = new RayfinChangeRequestRepository(client, actor);
   return {
@@ -32,6 +34,7 @@ export function createDependencies(
     reference,
     fiscalYears,
     employees,
+    territories,
     accounts,
     changeRequests,
   };

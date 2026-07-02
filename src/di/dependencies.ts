@@ -16,6 +16,7 @@ import type { EmployeeRepository } from '@/domain/repositories/employee-reposito
 import type { FiscalYearRepository } from '@/domain/repositories/fiscal-year-repository';
 import type { ReferenceRepository } from '@/domain/repositories/reference-repository';
 import type { RoleRepository } from '@/domain/repositories/role-repository';
+import type { TerritoryRepository } from '@/domain/repositories/territory-repository';
 
 export interface AppDependencies {
   /** Current actor for stewardship stamping and audit attribution. */
@@ -30,6 +31,8 @@ export interface AppDependencies {
   fiscalYears: FiscalYearRepository;
   /** Employee (sales-team-member) master. */
   employees: EmployeeRepository;
+  /** Territory / POD / sales-unit master. */
+  territories: TerritoryRepository;
   /** Account master with stewardship lifecycle. */
   accounts: AccountRepository;
   /** Change-request approval tickets. */
