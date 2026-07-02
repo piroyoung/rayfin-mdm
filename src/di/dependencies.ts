@@ -18,6 +18,7 @@ import type { FiscalYearRepository } from '@/domain/repositories/fiscal-year-rep
 import type { ReferenceRepository } from '@/domain/repositories/reference-repository';
 import type { RoleRepository } from '@/domain/repositories/role-repository';
 import type { SourceXrefRepository } from '@/domain/repositories/source-xref-repository';
+import type { SeedService } from '@/domain/ports/seed-service';
 import type { TerritoryRepository } from '@/domain/repositories/territory-repository';
 import type { TerritoryAccountAssignmentRepository } from '@/domain/repositories/territory-account-assignment-repository';
 import type { TerritoryRoleAssignmentRepository } from '@/domain/repositories/territory-role-assignment-repository';
@@ -49,4 +50,6 @@ export interface AppDependencies {
   dataQualityIssues: DataQualityIssueRepository;
   /** Source-system cross-references for ingested records. */
   sourceXrefs: SourceXrefRepository;
+  /** First-run demo seeding (local backend only). */
+  seed: SeedService;
 }

@@ -17,6 +17,7 @@ import { RayfinSourceXrefRepository } from '@/infrastructure/data/rayfin-source-
 import { RayfinTerritoryRepository } from '@/infrastructure/data/rayfin-territory-repository';
 import { RayfinTerritoryAccountAssignmentRepository } from '@/infrastructure/data/rayfin-territory-account-assignment-repository';
 import { RayfinTerritoryRoleAssignmentRepository } from '@/infrastructure/data/rayfin-territory-role-assignment-repository';
+import { LegacySeedService } from '@/infrastructure/config/legacy-seed-service';
 import type { RayfinClientFacade } from '@/infrastructure/rayfin/client';
 
 export function createDependencies(
@@ -39,6 +40,7 @@ export function createDependencies(
   const changeRequests = new RayfinChangeRequestRepository(client, actor);
   const dataQualityIssues = new RayfinDataQualityIssueRepository(client, actor);
   const sourceXrefs = new RayfinSourceXrefRepository(client);
+  const seed = new LegacySeedService();
   return {
     actor,
     audit,
@@ -53,5 +55,6 @@ export function createDependencies(
     changeRequests,
     dataQualityIssues,
     sourceXrefs,
+    seed,
   };
 }
