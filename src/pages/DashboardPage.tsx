@@ -5,7 +5,7 @@
 import { DashboardKpiCards } from '@/components/dashboard/DashboardKpiCards';
 import { DataHealthCard } from '@/components/dashboard/DataHealthCard';
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
-import { MyIdentityCard } from '@/components/MyIdentityCard';
+import { MyIdentityCard } from '@/components/identity/MyIdentityCard';
 import { Card, EmptyState, PageHeader, Spinner } from '@/components/shared';
 import { useDashboard } from '@/usecase/dashboard/use-dashboard';
 

@@ -1,51 +1,22 @@
 /**
  * "This is me" — links the signed-in Entra user to their {@link Employee} row.
  *
- * Every employee is a user in this tenant, so on sign-in we can resolve the
- * current user to their master record by Entra oid / upn / email and offer the
- * one obvious next action: link (back-fill the durable oid) or auto-provision a
- * new employee from the signed-in identity. Shown on the dashboard.
+ * Every employee is a user in this tenant, so on sign-in we resolve the current
+ * user to their master record by Entra oid / upn / email and offer the one
+ * obvious next action: link (back-fill the durable oid) or auto-provision a new
+ * employee. All resolution and orchestration lives in `useMyIdentity`; this card
+ * only renders the view-model. Shown on the dashboard.
  */
-import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { useAuth } from '@/usecase/auth/auth-context';
-import { listEmployees } from '@/services/employees';
-import {
-  linkEmployeeToUser,
-  matchEmployeeToUser,
-  provisionEmployeeFromUser,
-} from '@/services/identity';
-import { useAsyncData } from '@/usecase/shared/use-async-data';
-import { useToast } from '@/usecase/shared/toast-context';
-import { initials } from '@/lib/format';
 import { Badge, Button, Card } from '@/components/shared';
+import { initials } from '@/lib/format';
+import { useMyIdentity } from '@/usecase/identity/use-my-identity';
 
 export function MyIdentityCard() {
-  const { user } = useAuth();
-  const toast = useToast();
-  const { data, loading, reload } = useAsyncData(listEmployees);
-  const [busy, setBusy] = useState(false);
-
-  const match = useMemo(
-    () => (user && data ? matchEmployeeToUser(user, data) : null),
-    [user, data]
-  );
+  const { user, match, loading, busy, onLink, onProvision } = useMyIdentity();
 
   if (!user || loading || !match) return null;
-
-  async function run(fn: () => Promise<unknown>, ok: string) {
-    setBusy(true);
-    try {
-      await fn();
-      toast(ok, 'success');
-      reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Action failed.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const status =
     match.kind === 'linked' ? (
@@ -106,12 +77,7 @@ export function MyIdentityCard() {
             variant="primary"
             size="sm"
             loading={busy}
-            onClick={() =>
-              run(
-                () => linkEmployeeToUser(match.employee, user),
-                'Linked to your employee record.'
-              )
-            }
+            onClick={() => onLink(match.employee)}
           >
             Link my Entra ID
           </Button>
@@ -121,12 +87,7 @@ export function MyIdentityCard() {
             variant="primary"
             size="sm"
             loading={busy}
-            onClick={() =>
-              run(
-                () => provisionEmployeeFromUser(user),
-                'Created your employee record.'
-              )
-            }
+            onClick={onProvision}
           >
             Create my employee record
           </Button>

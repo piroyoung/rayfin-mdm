@@ -16,6 +16,7 @@ import { useAsyncData } from '@/usecase/shared/use-async-data';
 import { useCrudForm } from '@/usecase/shared/use-crud-form';
 import { useToast } from '@/usecase/shared/toast-context';
 
+import { createEmployee, updateEmployee } from './employee-operations';
 import { conflictedIdSet, filterEmployees } from './selectors';
 
 export function useEmployees() {
@@ -48,24 +49,10 @@ export function useEmployees() {
     setSaving(true);
     try {
       if (form.editing) {
-        await repo.update(form.editing.id, input);
-        await audit.log({
-          domain: 'employee',
-          action: 'update',
-          recordId: form.editing.id,
-          recordLabel: employeeLabel(input),
-          summary: `Updated employee ${input.displayName}`,
-        });
+        await updateEmployee({ employees: repo, audit }, form.editing.id, input);
         toast('Employee updated.', 'success');
       } else {
-        const created = await repo.create(input);
-        await audit.log({
-          domain: 'employee',
-          action: 'create',
-          recordId: created.id,
-          recordLabel: employeeLabel(input),
-          summary: `Created employee ${input.displayName}`,
-        });
+        await createEmployee({ employees: repo, audit }, input);
         toast('Employee created.', 'success');
       }
       form.close();
