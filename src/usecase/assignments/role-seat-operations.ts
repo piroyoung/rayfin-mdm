@@ -7,7 +7,10 @@
 import { assertTransition } from '@/domain/assignmentWorkflow';
 import { territoryRoleScopeKey } from '@/domain/territoryRoster';
 import type { AuditLog } from '@/domain/ports/audit-log';
-import type { TerritoryRoleAssignmentRepository } from '@/domain/repositories/territory-role-assignment-repository';
+import type {
+  TerritoryRoleAssignmentInput,
+  TerritoryRoleAssignmentRepository,
+} from '@/domain/repositories/territory-role-assignment-repository';
 import type { AssignmentStatus, TerritoryRoleAssignment } from '@/domain/types';
 
 export interface RoleSeatDeps {
@@ -19,6 +22,26 @@ export interface SeatScope {
   territoryId: string;
   roleTypeCode: string;
   fiscalYearId: string;
+}
+
+/** Create a seat row directly and record it (no single-seat swap). */
+export async function createSeat(
+  deps: RoleSeatDeps,
+  input: TerritoryRoleAssignmentInput
+): Promise<TerritoryRoleAssignment> {
+  const created = await deps.territoryRoleAssignments.create(input);
+  await deps.audit.log({
+    domain: 'territory_role',
+    action: 'create',
+    recordId: created.id,
+    recordLabel: `${input.roleTypeCode} seat`,
+    summary: `Staffed ${input.roleTypeCode} seat in territory`,
+    details: {
+      territoryId: input.territoryId,
+      fiscalYearId: input.fiscalYearId,
+    },
+  });
+  return created;
 }
 
 /**
@@ -39,22 +62,7 @@ export async function setSeatMember(
   );
 
   if (!holder) {
-    const created = await deps.territoryRoleAssignments.create({
-      ...seat,
-      employeeId: newEmployeeId,
-    });
-    await deps.audit.log({
-      domain: 'territory_role',
-      action: 'create',
-      recordId: created.id,
-      recordLabel: `${seat.roleTypeCode} seat`,
-      summary: `Staffed ${seat.roleTypeCode} seat in territory`,
-      details: {
-        territoryId: seat.territoryId,
-        fiscalYearId: seat.fiscalYearId,
-      },
-    });
-    return created;
+    return createSeat(deps, { ...seat, employeeId: newEmployeeId });
   }
   if (holder.employeeId === newEmployeeId) return holder;
 
