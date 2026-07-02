@@ -1,7 +1,7 @@
 /** MDMとは？: Japanese onboarding guide for first-time MDM users. */
 import { Link } from 'react-router-dom';
 
-import { Badge, Card, PageHeader } from '@/components/ui';
+import { Badge, Card, PageHeader } from '@/components/shared';
 
 /** Short walkthrough of every menu item, for newcomers. */
 const MENU_GUIDE: Array<{

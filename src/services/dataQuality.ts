@@ -21,18 +21,9 @@ import type {
   IssueSeverity,
   ResolutionStatus,
 } from '@/domain/types';
+import type { DataQualityIssueInput } from '@/domain/repositories/data-quality-issue-repository';
 
-export interface DataQualityIssueInput {
-  entityType: string;
-  entityId?: string;
-  sourceSystem?: string;
-  sourceRecordId?: string;
-  issueType: string;
-  severity: IssueSeverity;
-  description?: string;
-  detectedByProcess?: string;
-  ownerEmployeeId?: string;
-}
+export type { DataQualityIssueInput };
 
 function issues() {
   return getRayfinClient().data.DataQualityIssue;

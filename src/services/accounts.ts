@@ -1,39 +1,23 @@
 /**
- * Account master-data service: CRUD plus stewardship lifecycle transitions,
- * survivorship merge, and automatic quality scoring + audit logging.
+ * Legacy account service — backlog shim.
+ *
+ * Migrated screens use {@link AccountRepository} through the DI graph. This file
+ * stays only for not-yet-migrated consumers (dashboard, assignments/territory
+ * pages, dataQuality/seed/ingest services, the stewardship service, and the
+ * projection test). It re-exports the canonical type and pure rules from the
+ * domain so there is no drift, and keeps the CRUD/lifecycle functions bound to
+ * the bootstrap client until each consumer migrates.
  */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
 import { scoreAccount } from '@/domain/quality';
+import { accountLabel, accountName } from '@/domain/models/account';
+import type { AccountInput } from '@/domain/repositories/account-repository';
 import type { Account, RecordStatus } from '@/domain/types';
 
-/** Steward-editable fields of an account (everything else is system-managed). */
-export interface AccountInput {
-  accountNumber: string;
-  nameLegal: string;
-  nameDisplay?: string;
-  nameLocal?: string;
-  // Hierarchy
-  parentAccountId?: string;
-  globalParentAccountId?: string;
-  // External IDs (lineage)
-  msSalesAccountId?: string;
-  crmAccountId?: string;
-  // Reference-coded classification
-  industryCode?: string;
-  verticalCode?: string;
-  subVerticalCode?: string;
-  verticalCategoryCode?: string;
-  segmentCode?: string;
-  subSegmentCode?: string;
-  // Geography
-  countryCode?: string;
-  region?: string;
-  prefecture?: string;
-  city?: string;
-  sourceSystem?: string;
-}
+export type { AccountInput } from '@/domain/repositories/account-repository';
+export { accountName } from '@/domain/models/account';
 
 function accounts() {
   return getRayfinClient().data.Account;
@@ -78,22 +62,6 @@ const ACCOUNT_FIELDS = [
   'updatedAt',
 ] as const;
 
-/** Best display name for an account: common name, else legal name. */
-export function accountName(record: {
-  nameDisplay?: string;
-  nameLegal: string;
-}): string {
-  return record.nameDisplay?.trim() || record.nameLegal;
-}
-
-function label(record: {
-  accountNumber: string;
-  nameDisplay?: string;
-  nameLegal: string;
-}): string {
-  return `${record.accountNumber} — ${accountName(record)}`;
-}
-
 export async function listAccounts(): Promise<Account[]> {
   const rows = await accounts().select(ACCOUNT_FIELDS).execute();
   return [...rows].sort(
@@ -128,7 +96,7 @@ export async function createAccount(input: AccountInput): Promise<Account> {
     domain: 'account',
     action: 'create',
     recordId: created.id,
-    recordLabel: label(input),
+    recordLabel: accountLabel(input),
     summary: `Created account ${accountName(input)}`,
   });
   return created;
@@ -152,7 +120,7 @@ export async function updateAccount(
     domain: 'account',
     action: 'update',
     recordId: id,
-    recordLabel: label(input),
+    recordLabel: accountLabel(input),
     summary: `Updated account ${accountName(input)}`,
   });
   return updated;
@@ -181,7 +149,7 @@ export async function setAccountStatus(
     domain: 'account',
     action,
     recordId: record.id,
-    recordLabel: label(record),
+    recordLabel: accountLabel(record),
     summary: `Account ${accountName(record)} → ${status}`,
     details: note,
   });
@@ -214,7 +182,7 @@ export async function mergeAccounts(
       domain: 'account',
       action: 'merge',
       recordId: loser.id,
-      recordLabel: label(loser),
+      recordLabel: accountLabel(loser),
       summary: `Merged ${accountName(loser)} into ${accountName(winner)}`,
       details: { winnerId: winner.id, winnerNumber: winner.accountNumber },
     });
@@ -236,7 +204,7 @@ export async function deleteAccount(record: Account): Promise<void> {
     domain: 'account',
     action: 'delete',
     recordId: record.id,
-    recordLabel: label(record),
+    recordLabel: accountLabel(record),
     summary: `Deleted account ${accountName(record)}`,
   });
 }

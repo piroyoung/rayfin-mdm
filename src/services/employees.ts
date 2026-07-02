@@ -1,27 +1,24 @@
 /**
- * Employee master service: CRUD plus identity-conflict detection (alias / UPN /
- * email must be unique among active employees).
+ * Legacy employee master service — backlog shim.
+ *
+ * The clean-architecture home for employees is the {@link EmployeeRepository}
+ * port + `RayfinEmployeeRepository` adapter, consumed via the Employees
+ * use case. This module stays only for not-yet-migrated callers (seed, ingest,
+ * data-quality, identity, territory/assignment screens). Types and pure rules
+ * are re-exported from their canonical domain homes so there is no drift.
  */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
+import { employeeLabel, employeeSnapshot } from '@/domain/models/employee';
+import type { EmployeeInput } from '@/domain/repositories/employee-repository';
 import type { Employee } from '@/domain/types';
 
-export interface EmployeeInput {
-  personnelNumber?: string;
-  alias?: string;
-  upn?: string;
-  email?: string;
-  entraObjectId?: string;
-  displayName: string;
-  localName?: string;
-  jobTitle?: string;
-  roleTypeCode?: string;
-  countryCode?: string;
-  officeLocation?: string;
-  employmentStatus?: string;
-  isActive?: boolean;
-}
+export type { EmployeeInput } from '@/domain/repositories/employee-repository';
+export type { EmployeeIdentityConflict } from '@/domain/policies/employee-conflicts';
+export { findEmployeeIdentityConflicts } from '@/domain/policies/employee-conflicts';
+/** @deprecated Import `employeeSnapshot` from `@/domain/models/employee`. */
+export const toEmployeeInput = employeeSnapshot;
 
 function employees() {
   return getRayfinClient().data.Employee;
@@ -52,29 +49,6 @@ const EMPLOYEE_FIELDS = [
   'updatedAt',
 ] as const;
 
-function label(e: { displayName: string; alias?: string }): string {
-  return e.alias ? `${e.displayName} (${e.alias})` : e.displayName;
-}
-
-/** Project a stored row back to its steward-editable input shape. */
-export function toEmployeeInput(e: Employee): EmployeeInput {
-  return {
-    personnelNumber: e.personnelNumber,
-    alias: e.alias,
-    upn: e.upn,
-    email: e.email,
-    entraObjectId: e.entraObjectId,
-    displayName: e.displayName,
-    localName: e.localName,
-    jobTitle: e.jobTitle,
-    roleTypeCode: e.roleTypeCode,
-    countryCode: e.countryCode,
-    officeLocation: e.officeLocation,
-    employmentStatus: e.employmentStatus,
-    isActive: e.isActive,
-  };
-}
-
 export async function listEmployees(): Promise<Employee[]> {
   const rows = await employees().select(EMPLOYEE_FIELDS).execute();
   return [...rows].sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -103,7 +77,7 @@ export async function createEmployee(input: EmployeeInput): Promise<Employee> {
     domain: 'employee',
     action: 'create',
     recordId: created.id,
-    recordLabel: label(input),
+    recordLabel: employeeLabel(input),
     summary: `Created employee ${input.displayName}`,
   });
   return created;
@@ -126,7 +100,7 @@ export async function updateEmployee(
     domain: 'employee',
     action: 'update',
     recordId: id,
-    recordLabel: label(input),
+    recordLabel: employeeLabel(input),
     summary: `Updated employee ${input.displayName}`,
   });
   return updated;
@@ -144,46 +118,8 @@ export async function setEmployeeActive(
     domain: 'employee',
     action: 'status_change',
     recordId: record.id,
-    recordLabel: label(record),
+    recordLabel: employeeLabel(record),
     summary: `Employee ${record.displayName} → ${isActive ? 'active' : 'inactive'}`,
   });
   return updated;
-}
-
-export interface EmployeeIdentityConflict {
-  field: 'alias' | 'upn' | 'email';
-  value: string;
-  ids: string[];
-}
-
-const normKey = (v?: string | null) => (v ?? '').trim().toLowerCase();
-
-/**
- * Pure: find alias / UPN / email values shared by more than one *active*
- * employee. Used by the UI for inline warnings and by the Phase 4 DQ rules.
- */
-export function findEmployeeIdentityConflicts(
-  rows: Employee[]
-): EmployeeIdentityConflict[] {
-  const active = rows.filter((r) => r.isActive);
-  const fields: Array<EmployeeIdentityConflict['field']> = [
-    'alias',
-    'upn',
-    'email',
-  ];
-  const conflicts: EmployeeIdentityConflict[] = [];
-  for (const field of fields) {
-    const byValue = new Map<string, { value: string; ids: string[] }>();
-    for (const e of active) {
-      const key = normKey(e[field]);
-      if (!key) continue;
-      const hit = byValue.get(key) ?? { value: e[field] as string, ids: [] };
-      hit.ids.push(e.id);
-      byValue.set(key, hit);
-    }
-    for (const { value, ids } of byValue.values()) {
-      if (ids.length > 1) conflicts.push({ field, value, ids });
-    }
-  }
-  return conflicts;
 }

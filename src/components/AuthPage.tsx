@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { useAuth } from '@/hooks/AuthContext';
+import { useAuth } from '@/usecase/auth/auth-context';
 
 const msLogo = (
   <svg

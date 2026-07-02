@@ -1,10 +1,12 @@
 /**
- * Territory-role roster service: who holds each role seat in a territory.
+ * Legacy territory-role roster service — backlog shim.
  *
- * The roster is the canonical role → person decision (one current member per
- * territory / role / fiscal year). `setSeatMember` enforces that single-seat
- * rule with an SCD-Type-2 swap — it end-dates the prior holder and opens a
- * fresh current row, never mutating in place, so seat history is preserved.
+ * Migrated screens use {@link TerritoryRoleAssignmentRepository} through the DI
+ * graph. This file stays for not-yet-migrated consumers (roster / role-seat /
+ * stewardship pages, dataQuality / seed / ingest services, and the projection
+ * test). It re-exports the canonical input type from the port so there is no
+ * drift, and keeps the data functions bound to the bootstrap client until each
+ * consumer migrates.
  */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
@@ -14,21 +16,13 @@ import {
   planSeatReassignment,
   territoryRoleScopeKey,
 } from '@/domain/territoryRoster';
+import type { TerritoryRoleAssignmentInput } from '@/domain/repositories/territory-role-assignment-repository';
 import type {
   TerritoryRoleAssignment,
   AssignmentStatus,
 } from '@/domain/types';
 
-export interface TerritoryRoleAssignmentInput {
-  territoryId: string;
-  employeeId: string;
-  fiscalYearId: string;
-  roleTypeCode: string;
-  assignmentStatus?: AssignmentStatus;
-  startDate?: Date;
-  sourceSystem?: string;
-  sourceRecordId?: string;
-}
+export type { TerritoryRoleAssignmentInput } from '@/domain/repositories/territory-role-assignment-repository';
 
 function seats() {
   return getRayfinClient().data.TerritoryRoleAssignment;

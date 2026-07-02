@@ -1,22 +1,21 @@
-/** Territory master service: CRUD plus manager/parent cycle awareness. */
+/**
+ * Legacy territory service — backlog shim.
+ *
+ * The Territories screen uses {@link TerritoryRepository} through the DI graph.
+ * This file stays for not-yet-migrated consumers (roster / assignment /
+ * stewardship pages, dataQuality / seed / ingest services, and the projection
+ * test). It re-exports the canonical input type from the port so there is no
+ * drift, and keeps the CRUD/lifecycle functions bound to the bootstrap client
+ * until each consumer migrates.
+ */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
 import { wouldCreateCycle, type HierarchyNode } from '@/domain/hierarchy';
+import type { TerritoryInput } from '@/domain/repositories/territory-repository';
 import type { Territory } from '@/domain/types';
 
-export interface TerritoryInput {
-  territoryCode: string;
-  territoryName: string;
-  territoryType?: string;
-  parentTerritoryId?: string;
-  fiscalYearId?: string;
-  segmentCode?: string;
-  industryCode?: string;
-  region?: string;
-  countryCode?: string;
-  isActive?: boolean;
-}
+export type { TerritoryInput } from '@/domain/repositories/territory-repository';
 
 function territories() {
   return getRayfinClient().data.Territory;

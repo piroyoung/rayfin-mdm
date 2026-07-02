@@ -1,34 +1,27 @@
 /**
- * Territory-placement assignment service: which territory an account sits in for
- * a given fiscal year (`TerritoryAccountAssignment`). Fiscal-year scoped with
- * SCD-Type-2 history, so "did this account move territory?" is derivable.
+ * Legacy territory-placement service — backlog shim.
  *
- * Role coverage is *not* stored per account — it derives from the territory
- * roster (see `services/territoryRoleAssignments.ts`).
+ * Migrated screens use {@link TerritoryAccountAssignmentRepository} through the
+ * DI graph. This file stays for not-yet-migrated consumers (assignment pages,
+ * dataQuality / seed / ingest services, and the projection test). It re-exports
+ * the canonical input type from the port so there is no drift, and keeps the
+ * data functions bound to the bootstrap client until each consumer migrates.
  */
 import { getRayfinClient } from '@/services/rayfinClient';
 import { actorId } from '@/services/session';
 import { logAudit } from '@/services/audit';
 import { assertTransition } from '@/domain/assignmentWorkflow';
+import type { TerritoryAssignmentInput } from '@/domain/repositories/territory-account-assignment-repository';
 import type {
   TerritoryAccountAssignment,
   AssignmentStatus,
 } from '@/domain/types';
 
+export type { TerritoryAssignmentInput } from '@/domain/repositories/territory-account-assignment-repository';
+
 // ---------------------------------------------------------------------------
 // Account ↔ Territory (placement)
 // ---------------------------------------------------------------------------
-
-export interface TerritoryAssignmentInput {
-  accountId: string;
-  territoryId: string;
-  fiscalYearId: string;
-  assignmentType?: string;
-  assignmentStatus?: AssignmentStatus;
-  startDate?: Date;
-  sourceSystem?: string;
-  sourceRecordId?: string;
-}
 
 function territoryAssignments() {
   return getRayfinClient().data.TerritoryAccountAssignment;
