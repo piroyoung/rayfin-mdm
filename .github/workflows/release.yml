@@ -65,7 +65,8 @@ jobs:
     environment: production
     env:
       RAYFIN_WORKSPACE_ID: ${{ vars.RAYFIN_WORKSPACE_ID || '54294be3-ba65-46fe-a3dd-33a916a15acc' }}
-      RAYFIN_TENANT_ID: ${{ vars.RAYFIN_TENANT_ID || 'eecca864-7a91-4b48-9327-e19aa5cc3f35' }}
+      # Fabric tenant that owns the "rayfin-smec-championship" workspace above.
+      RAYFIN_TENANT_ID: ${{ vars.RAYFIN_TENANT_ID || '72f988bf-86f1-41af-91ab-2d7cd011db47' }}
     steps:
       - uses: actions/checkout@v4
 
