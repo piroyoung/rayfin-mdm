@@ -13,6 +13,7 @@ import { RayfinEmployeeRepository } from '@/infrastructure/data/rayfin-employee-
 import { RayfinFiscalYearRepository } from '@/infrastructure/data/rayfin-fiscal-year-repository';
 import { RayfinReferenceRepository } from '@/infrastructure/data/rayfin-reference-repository';
 import { RayfinRoleRepository } from '@/infrastructure/data/rayfin-role-repository';
+import { RayfinSourceXrefRepository } from '@/infrastructure/data/rayfin-source-xref-repository';
 import { RayfinTerritoryRepository } from '@/infrastructure/data/rayfin-territory-repository';
 import { RayfinTerritoryAccountAssignmentRepository } from '@/infrastructure/data/rayfin-territory-account-assignment-repository';
 import { RayfinTerritoryRoleAssignmentRepository } from '@/infrastructure/data/rayfin-territory-role-assignment-repository';
@@ -37,6 +38,7 @@ export function createDependencies(
   const accounts = new RayfinAccountRepository(client, actor);
   const changeRequests = new RayfinChangeRequestRepository(client, actor);
   const dataQualityIssues = new RayfinDataQualityIssueRepository(client, actor);
+  const sourceXrefs = new RayfinSourceXrefRepository(client);
   return {
     actor,
     audit,
@@ -50,5 +52,6 @@ export function createDependencies(
     accounts,
     changeRequests,
     dataQualityIssues,
+    sourceXrefs,
   };
 }

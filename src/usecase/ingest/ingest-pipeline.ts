@@ -1,7 +1,7 @@
 /**
- * Excel/CSV ingest service: wires the pure parse → staging → plan pipeline
+ * Excel/CSV ingest pipeline. Wires the pure parse → staging → plan pipeline
  * (`@/domain/ingest`, `@/domain/aliasMap`, `@/domain/ingestPlan`) to the MDM
- * data layer.
+ * data layer through injected repository ports and the feature write operations.
  *
  *   previewIngest()  – read-only: parse + resolve against current masters and
  *                      return the canonical plan + data-quality issues.
@@ -9,23 +9,6 @@
  *                      territory, staff territory role seats, register source
  *                      cross-references, and raise any new data-quality issues.
  */
-import { createAccount, listAccounts } from '@/services/accounts';
-import { listEmployees } from '@/services/employees';
-import { listTerritories } from '@/services/territories';
-import { listFiscalYears } from '@/services/fiscalYears';
-import {
-  createTerritoryAssignment,
-  listTerritoryAssignments,
-} from '@/services/assignments';
-import {
-  createTerritoryRoleAssignment,
-  listTerritoryRoleAssignments,
-} from '@/services/territoryRoleAssignments';
-import {
-  createDataQualityIssues,
-  listOpenDataQualityIssues,
-} from '@/services/dataQuality';
-import { ensureSourceXref } from '@/services/sourceXref';
 import { buildAliasIndex, normalizeTerritoryCode } from '@/domain/aliasMap';
 import {
   accountKeyOf,
@@ -34,8 +17,27 @@ import {
   type IngestColumnConfig,
   type StagingResult,
 } from '@/domain/ingest';
-import { INGEST_PROCESS, planIngest, type IngestPlan } from '@/domain/ingestPlan';
+import {
+  INGEST_PROCESS,
+  planIngest,
+  type IngestPlan,
+} from '@/domain/ingestPlan';
+import type { AuditLog } from '@/domain/ports/audit-log';
+import type { AccountRepository } from '@/domain/repositories/account-repository';
+import type { DataQualityIssueRepository } from '@/domain/repositories/data-quality-issue-repository';
+import type { EmployeeRepository } from '@/domain/repositories/employee-repository';
+import type { FiscalYearRepository } from '@/domain/repositories/fiscal-year-repository';
+import type { SourceXrefRepository } from '@/domain/repositories/source-xref-repository';
+import type { TerritoryRepository } from '@/domain/repositories/territory-repository';
+import type { TerritoryAccountAssignmentRepository } from '@/domain/repositories/territory-account-assignment-repository';
+import type { TerritoryRoleAssignmentRepository } from '@/domain/repositories/territory-role-assignment-repository';
 import type { FiscalYear } from '@/domain/types';
+import { createAccount } from '@/usecase/accounts/create-account';
+import { createPlacement } from '@/usecase/assignments/placement-operations';
+import { createSeat } from '@/usecase/assignments/role-seat-operations';
+import { createIssues } from '@/usecase/dataquality/quality-issue-operations';
+
+import { ensureSourceXref } from './ensure-source-xref';
 
 export const INGEST_SOURCE_SYSTEM = 'ExcelIngest';
 
@@ -46,6 +48,19 @@ export const DEFAULT_INGEST_CONFIG: IngestColumnConfig = {
   crmIdColumn: 'CRMAccountID',
   territoryColumn: 'Territory',
 };
+
+/** Every port + write dependency the ingest pipeline needs. */
+export interface IngestDeps {
+  accounts: AccountRepository;
+  employees: EmployeeRepository;
+  territories: TerritoryRepository;
+  fiscalYears: FiscalYearRepository;
+  territoryAccountAssignments: TerritoryAccountAssignmentRepository;
+  territoryRoleAssignments: TerritoryRoleAssignmentRepository;
+  dataQualityIssues: DataQualityIssueRepository;
+  sourceXrefs: SourceXrefRepository;
+  audit: AuditLog;
+}
 
 export interface IngestPreview {
   staging: StagingResult;
@@ -74,12 +89,12 @@ function resolveIngestFiscalYear(years: FiscalYear[]): FiscalYear | null {
   );
 }
 
-async function buildContext(staging: StagingResult) {
+async function buildContext(deps: IngestDeps, staging: StagingResult) {
   const [accounts, employees, territories, fiscalYears] = await Promise.all([
-    listAccounts(),
-    listEmployees(),
-    listTerritories(),
-    listFiscalYears(),
+    deps.accounts.list(),
+    deps.employees.list(),
+    deps.territories.list(),
+    deps.fiscalYears.list(),
   ]);
 
   const aliasIndex = buildAliasIndex(employees);
@@ -113,11 +128,12 @@ async function buildContext(staging: StagingResult) {
 
 /** Parse + resolve a sheet against current masters without writing anything. */
 export async function previewIngest(
+  deps: IngestDeps,
   text: string,
   config: IngestColumnConfig = DEFAULT_INGEST_CONFIG
 ): Promise<IngestPreview> {
   const staging = buildStaging(parseDelimited(text), config);
-  const { plan, fiscalYear } = await buildContext(staging);
+  const { plan, fiscalYear } = await buildContext(deps, staging);
   return { staging, plan, fiscalYear };
 }
 
@@ -127,7 +143,11 @@ function accountNumberFor(account: {
 }): string {
   const base =
     account.msSalesAccountId?.trim() ||
-    account.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    account.name
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   return `ING-${base}`.slice(0, 48);
 }
 
@@ -138,11 +158,15 @@ function accountNumberFor(account: {
  * already open for the same source row are not re-raised.
  */
 export async function commitIngest(
+  deps: IngestDeps,
   text: string,
   config: IngestColumnConfig = DEFAULT_INGEST_CONFIG
 ): Promise<IngestSummary> {
   const staging = buildStaging(parseDelimited(text), config);
-  const { plan, accounts, territories, fiscalYear } = await buildContext(staging);
+  const { plan, accounts, territories, fiscalYear } = await buildContext(
+    deps,
+    staging
+  );
 
   const summary: IngestSummary = {
     accountsCreated: 0,
@@ -165,7 +189,7 @@ export async function commitIngest(
   for (const account of staging.accounts) {
     let accountId = accountByKey.get(account.accountKey);
     if (!accountId) {
-      const created = await createAccount({
+      const created = await createAccount(deps, {
         accountNumber: accountNumberFor(account),
         nameLegal: account.name,
         msSalesAccountId: account.msSalesAccountId,
@@ -177,7 +201,7 @@ export async function commitIngest(
       summary.accountsCreated += 1;
     }
     // Record the originating Excel row (and MSSales id) as a cross-reference.
-    await ensureSourceXref({
+    await ensureSourceXref(deps, {
       mdmEntityType: 'account',
       mdmEntityId: accountId,
       sourceSystem: INGEST_SOURCE_SYSTEM,
@@ -192,7 +216,7 @@ export async function commitIngest(
 
   if (!fiscalYear) {
     // No fiscal year to scope assignments to — still raise the issues we found.
-    summary.issuesRaised = await raiseIngestIssues(plan);
+    summary.issuesRaised = await raiseIngestIssues(deps, plan);
     return summary;
   }
 
@@ -202,7 +226,7 @@ export async function commitIngest(
   );
 
   // 2a) Place each account in its territory (account → territory bridge).
-  const existingPlacements = await listTerritoryAssignments();
+  const existingPlacements = await deps.territoryAccountAssignments.list();
   const placementScopes = new Set(
     existingPlacements
       .filter((p) => p.currentFlag)
@@ -223,7 +247,7 @@ export async function commitIngest(
       summary.placementsSkipped += 1;
       continue;
     }
-    await createTerritoryAssignment({
+    await createPlacement(deps, {
       accountId,
       territoryId,
       fiscalYearId: fiscalYear.id,
@@ -238,7 +262,7 @@ export async function commitIngest(
   // 2b) Staff territory role seats from the resolved assignment intents. One
   //     seat per territory/role/FY — the first intent wins; later duplicates
   //     (and intents whose territory does not resolve) are skipped.
-  const existingSeats = await listTerritoryRoleAssignments();
+  const existingSeats = await deps.territoryRoleAssignments.list();
   const seatScopes = new Set(
     existingSeats
       .filter((s) => s.currentFlag)
@@ -257,7 +281,7 @@ export async function commitIngest(
       summary.assignmentsSkipped += 1;
       continue;
     }
-    await createTerritoryRoleAssignment({
+    await createSeat(deps, {
       territoryId,
       employeeId: intent.employeeId,
       fiscalYearId: fiscalYear.id,
@@ -271,22 +295,32 @@ export async function commitIngest(
   }
 
   // 3) Data-quality issues (deduped against open issues for the same source row).
-  summary.issuesRaised = await raiseIngestIssues(plan);
+  summary.issuesRaised = await raiseIngestIssues(deps, plan);
   return summary;
 }
 
 /** Persist plan issues that are not already open for the same type + source row. */
-async function raiseIngestIssues(plan: IngestPlan): Promise<number> {
+async function raiseIngestIssues(
+  deps: IngestDeps,
+  plan: IngestPlan
+): Promise<number> {
   if (plan.issues.length === 0) return 0;
-  const open = await listOpenDataQualityIssues();
+  const all = await deps.dataQualityIssues.list();
+  const open = all.filter(
+    (i) =>
+      i.resolutionStatus === 'open' || i.resolutionStatus === 'in_progress'
+  );
   const openKeys = new Set(
-    open.map((i) => `${i.issueType}|${i.sourceRecordId ?? ''}|${i.description ?? ''}`)
+    open.map(
+      (i) => `${i.issueType}|${i.sourceRecordId ?? ''}|${i.description ?? ''}`
+    )
   );
   const fresh = plan.issues.filter(
     (i) => !openKeys.has(`${i.issueType}|${i.sourceRecordId}|${i.description}`)
   );
   if (fresh.length === 0) return 0;
-  return createDataQualityIssues(
+  return createIssues(
+    deps,
     fresh.map((i) => ({
       entityType: i.entityType,
       issueType: i.issueType,

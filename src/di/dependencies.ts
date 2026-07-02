@@ -17,6 +17,7 @@ import type { EmployeeRepository } from '@/domain/repositories/employee-reposito
 import type { FiscalYearRepository } from '@/domain/repositories/fiscal-year-repository';
 import type { ReferenceRepository } from '@/domain/repositories/reference-repository';
 import type { RoleRepository } from '@/domain/repositories/role-repository';
+import type { SourceXrefRepository } from '@/domain/repositories/source-xref-repository';
 import type { TerritoryRepository } from '@/domain/repositories/territory-repository';
 import type { TerritoryAccountAssignmentRepository } from '@/domain/repositories/territory-account-assignment-repository';
 import type { TerritoryRoleAssignmentRepository } from '@/domain/repositories/territory-role-assignment-repository';
@@ -46,4 +47,6 @@ export interface AppDependencies {
   changeRequests: ChangeRequestRepository;
   /** Data-quality triage queue. */
   dataQualityIssues: DataQualityIssueRepository;
+  /** Source-system cross-references for ingested records. */
+  sourceXrefs: SourceXrefRepository;
 }

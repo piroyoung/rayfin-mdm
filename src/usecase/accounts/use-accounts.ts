@@ -23,6 +23,7 @@ import { useToast } from '@/usecase/shared/toast-context';
 import { submitChangeRequest } from '@/usecase/stewardship/submit-change-request';
 
 import { filterAccounts, type StatusFilterValue } from './selectors';
+import { createAccount } from './create-account';
 
 export function useAccounts() {
   const { accounts: repo, changeRequests, audit } = useDependencies();
@@ -58,14 +59,7 @@ export function useAccounts() {
         });
         toast('Account updated.', 'success');
       } else {
-        const created = await repo.create(input);
-        await audit.log({
-          domain: 'account',
-          action: 'create',
-          recordId: created.id,
-          recordLabel: accountLabel(input),
-          summary: `Created account ${accountName(input)}`,
-        });
+        await createAccount({ accounts: repo, audit }, input);
         toast('Account created.', 'success');
       }
       form.close();
