@@ -12,6 +12,7 @@ import type { ActorContext } from '@/domain/ports/actor-context';
 import type { AuditLog } from '@/domain/ports/audit-log';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { ChangeRequestRepository } from '@/domain/repositories/change-request-repository';
+import type { DataQualityIssueRepository } from '@/domain/repositories/data-quality-issue-repository';
 import type { EmployeeRepository } from '@/domain/repositories/employee-repository';
 import type { FiscalYearRepository } from '@/domain/repositories/fiscal-year-repository';
 import type { ReferenceRepository } from '@/domain/repositories/reference-repository';
@@ -43,4 +44,6 @@ export interface AppDependencies {
   accounts: AccountRepository;
   /** Change-request approval tickets. */
   changeRequests: ChangeRequestRepository;
+  /** Data-quality triage queue. */
+  dataQualityIssues: DataQualityIssueRepository;
 }
